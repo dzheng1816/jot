@@ -124,9 +124,10 @@ export default function HomeScreen() {
         renderSectionHeader={({ section }) => (
           <Text style={styles.sectionHeader}>{section.title}</Text>
         )}
-        renderItem={({ item }) => (
+        renderItem={({ item, index }) => (
           <NoteCard
             note={item}
+            index={index}
             onOpenPriority={handleOpenPriority}
             onOpenReminder={handleOpenReminder}
           />

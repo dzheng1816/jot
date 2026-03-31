@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { View, TextInput, Pressable, StyleSheet, Keyboard } from 'react-native';
+import { View, TextInput, Pressable, StyleSheet, Keyboard, Animated } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { theme, priorityColor } from '../constants/theme';
@@ -24,6 +24,8 @@ export function Composer() {
   const priorityRef = useRef<PriorityPickerHandle>(null);
   const reminderRef = useRef<ReminderPickerHandle>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const shadowAnim = useRef(new Animated.Value(0.05)).current;
+  const scaleAnim = useRef(new Animated.Value(1)).current;
 
   const {
     createNote,
@@ -86,7 +88,36 @@ export function Composer() {
     [activeNote, createNote, updateBody, loadFeed, resetComposer]
   );
 
+  const handleFocus = useCallback(() => {
+    Animated.parallel([
+      Animated.spring(scaleAnim, {
+        toValue: 1.02,
+        useNativeDriver: true,
+        speed: 20,
+        bounciness: 4,
+      }),
+      Animated.timing(shadowAnim, {
+        toValue: 0.12,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
   const handleBlur = useCallback(async () => {
+    Animated.parallel([
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        useNativeDriver: true,
+        speed: 20,
+        bounciness: 4,
+      }),
+      Animated.timing(shadowAnim, {
+        toValue: 0.05,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start();
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
       debounceRef.current = null;
@@ -154,7 +185,15 @@ export function Composer() {
 
   return (
     <>
-      <View style={styles.card}>
+      <Animated.View
+        style={[
+          styles.card,
+          {
+            transform: [{ scale: scaleAnim }],
+            shadowOpacity: shadowAnim,
+          },
+        ]}
+      >
         <TextInput
           ref={inputRef}
           style={styles.input}
@@ -162,6 +201,7 @@ export function Composer() {
           placeholderTextColor={theme.colors.textSecondary}
           value={text}
           onChangeText={handleChangeText}
+          onFocus={handleFocus}
           onBlur={handleBlur}
           multiline
           textAlignVertical="top"
@@ -204,7 +244,7 @@ export function Composer() {
             />
           </Pressable>
         </View>
-      </View>
+      </Animated.View>
 
       <PriorityPicker
         ref={priorityRef}

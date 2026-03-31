@@ -86,6 +86,14 @@ export default function NoteDetailScreen() {
     };
   }, []);
 
+  const goBack = useCallback(() => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/');
+    }
+  }, []);
+
   // "Done" — flush any pending save and go back
   const handleDone = useCallback(async () => {
     if (debounceRef.current) {
@@ -96,8 +104,8 @@ export default function NoteDetailScreen() {
       await updateBody(note.id, body);
     }
     await loadFeed();
-    router.back();
-  }, [note, body, updateBody, loadFeed]);
+    goBack();
+  }, [note, body, updateBody, loadFeed, goBack]);
 
   const handleTogglePin = useCallback(async () => {
     if (!note) return;
@@ -155,7 +163,7 @@ export default function NoteDetailScreen() {
             await cancelNotification(notificationIdRef.current);
           }
           await deleteNote(note.id);
-          router.back();
+          goBack();
         },
       },
     ]);
@@ -179,7 +187,7 @@ export default function NoteDetailScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} hitSlop={12}>
+          <Pressable onPress={goBack} hitSlop={12}>
             <Ionicons
               name="arrow-back"
               size={24}

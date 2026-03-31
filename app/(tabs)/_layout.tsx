@@ -12,7 +12,12 @@ export default function TabLayout() {
         tabBarStyle: {
           backgroundColor: theme.colors.card,
           borderTopColor: theme.colors.border,
+          elevation: 0,
+          shadowOpacity: 0.05,
+          shadowOffset: { width: 0, height: -2 },
+          shadowRadius: 8,
         },
+        animation: 'fade',
       }}
     >
       <Tabs.Screen

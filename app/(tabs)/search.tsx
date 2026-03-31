@@ -72,7 +72,7 @@ export default function SearchScreen() {
       <FlatList
         data={results}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <NoteCard note={item} />}
+        renderItem={({ item, index }) => <NoteCard note={item} index={index} />}
         ListEmptyComponent={
           hasSearched ? <EmptyState message="No notes found" /> : null
         }

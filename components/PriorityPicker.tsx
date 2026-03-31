@@ -45,7 +45,7 @@ export const PriorityPicker = forwardRef<PriorityPickerHandle, Props>(
       <Modal
         visible={visible}
         transparent
-        animationType="fade"
+        animationType="slide"
         onRequestClose={() => setVisible(false)}
       >
         <Pressable style={styles.overlay} onPress={() => setVisible(false)}>

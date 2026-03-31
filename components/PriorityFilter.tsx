@@ -1,5 +1,5 @@
-import React from 'react';
-import { Text, Pressable, StyleSheet, ScrollView } from 'react-native';
+import React, { useRef, useEffect } from 'react';
+import { Text, Pressable, StyleSheet, ScrollView, Animated } from 'react-native';
 import { theme } from '../constants/theme';
 import { Priority } from '../types/note';
 import { useNoteStore } from '../store/useNoteStore';
@@ -13,6 +13,93 @@ const filters: { label: string; value: FilterValue; activeColor: string }[] = [
   { label: 'Low', value: 'low', activeColor: theme.colors.priorityLow },
 ];
 
+function FilterChip({
+  label,
+  value,
+  activeColor,
+  isActive,
+  onPress,
+}: {
+  label: string;
+  value: FilterValue;
+  activeColor: string;
+  isActive: boolean;
+  onPress: () => void;
+}) {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const bgAnim = useRef(new Animated.Value(isActive ? 1 : 0)).current;
+
+  useEffect(() => {
+    Animated.timing(bgAnim, {
+      toValue: isActive ? 1 : 0,
+      duration: 200,
+      useNativeDriver: false,
+    }).start();
+  }, [isActive]);
+
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 0.92,
+      useNativeDriver: true,
+      speed: 50,
+      bounciness: 4,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      speed: 20,
+      bounciness: 6,
+    }).start();
+  };
+
+  const backgroundColor = bgAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['transparent', activeColor],
+  });
+
+  const textColor = bgAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [theme.colors.textSecondary, '#ffffff'],
+  });
+
+  const borderColor = bgAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [theme.colors.border, activeColor],
+  });
+
+  return (
+    <Animated.View
+      style={{
+        transform: [{ scale: scaleAnim }],
+      }}
+    >
+      <Pressable
+        onPress={onPress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+      >
+        <Animated.View
+          style={[
+            styles.chip,
+            {
+              backgroundColor,
+              borderWidth: 1,
+              borderColor,
+            },
+          ]}
+        >
+          <Animated.Text style={[styles.chipText, { color: textColor }]}>
+            {label}
+          </Animated.Text>
+        </Animated.View>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
 export function PriorityFilter() {
   const priorityFilter = useNoteStore((s) => s.priorityFilter);
   const setPriorityFilter = useNoteStore((s) => s.setPriorityFilter);
@@ -23,34 +110,16 @@ export function PriorityFilter() {
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={styles.container}
     >
-      {filters.map((f) => {
-        const isActive = priorityFilter === f.value;
-        return (
-          <Pressable
-            key={f.value}
-            onPress={() => setPriorityFilter(f.value)}
-            style={[
-              styles.chip,
-              isActive
-                ? { backgroundColor: f.activeColor }
-                : {
-                    backgroundColor: 'transparent',
-                    borderWidth: 1,
-                    borderColor: theme.colors.border,
-                  },
-            ]}
-          >
-            <Text
-              style={[
-                styles.chipText,
-                { color: isActive ? '#fff' : theme.colors.textSecondary },
-              ]}
-            >
-              {f.label}
-            </Text>
-          </Pressable>
-        );
-      })}
+      {filters.map((f) => (
+        <FilterChip
+          key={f.value}
+          label={f.label}
+          value={f.value}
+          activeColor={f.activeColor}
+          isActive={priorityFilter === f.value}
+          onPress={() => setPriorityFilter(f.value)}
+        />
+      ))}
     </ScrollView>
   );
 }
@@ -69,6 +138,6 @@ const styles = StyleSheet.create({
   },
   chipText: {
     fontSize: theme.typography.label.fontSize,
-    fontWeight: theme.typography.label.fontWeight,
+    fontWeight: theme.typography.label.fontWeight as any,
   },
 });

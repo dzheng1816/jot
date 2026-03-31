@@ -58,7 +58,12 @@ export default function RootLayout() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen
           name="note/[id]"
-          options={{ presentation: 'card', animation: 'slide_from_right' }}
+          options={{
+            presentation: 'modal',
+            animation: 'slide_from_bottom',
+            gestureEnabled: true,
+            gestureDirection: 'vertical',
+          }}
         />
       </Stack>
     </GestureHandlerRootView>

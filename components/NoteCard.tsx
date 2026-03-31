@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -18,14 +18,35 @@ import { useNoteStore } from '../store/useNoteStore';
 
 interface Props {
   note: Note;
+  index?: number;
   onOpenPriority?: (noteId: string) => void;
   onOpenReminder?: (noteId: string) => void;
 }
 
-export function NoteCard({ note, onOpenPriority, onOpenReminder }: Props) {
+export function NoteCard({ note, index = 0, onOpenPriority, onOpenReminder }: Props) {
   const swipeableRef = useRef<Swipeable>(null);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(12)).current;
   const deleteNote = useNoteStore((s) => s.deleteNote);
   const togglePin = useNoteStore((s) => s.togglePin);
+
+  useEffect(() => {
+    const delay = Math.min(index * 50, 300);
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 300,
+        delay,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 300,
+        delay,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
 
   const handlePress = () => {
     router.push(`/note/${note.id}`);
@@ -49,11 +70,18 @@ export function NoteCard({ note, onOpenPriority, onOpenReminder }: Props) {
 
   const renderRightActions = (
     _progress: Animated.AnimatedInterpolation<number>,
-    _dragX: Animated.AnimatedInterpolation<number>
+    dragX: Animated.AnimatedInterpolation<number>
   ) => {
+    const scale = dragX.interpolate({
+      inputRange: [-80, 0],
+      outputRange: [1, 0.5],
+      extrapolate: 'clamp',
+    });
     return (
       <Pressable onPress={handleDelete} style={styles.deleteAction}>
-        <Text style={styles.deleteText}>Delete</Text>
+        <Animated.Text style={[styles.deleteText, { transform: [{ scale }] }]}>
+          Delete
+        </Animated.Text>
       </Pressable>
     );
   };
@@ -61,92 +89,106 @@ export function NoteCard({ note, onOpenPriority, onOpenReminder }: Props) {
   const pColor = priorityColor(note.priority);
 
   return (
-    <Swipeable
-      ref={swipeableRef}
-      renderRightActions={renderRightActions}
-      overshootRight={false}
+    <Animated.View
+      style={{
+        opacity: fadeAnim,
+        transform: [{ translateY: slideAnim }],
+      }}
     >
-      <Pressable onPress={handlePress} style={styles.card}>
-        {/* Top row: preview + timestamp */}
-        <View style={styles.row}>
-          <View style={styles.bodyRow}>
-            <PriorityDot priority={note.priority} />
-            <Text style={styles.body} numberOfLines={1}>
-              {note.body || 'Empty note'}
+      <Swipeable
+        ref={swipeableRef}
+        renderRightActions={renderRightActions}
+        overshootRight={false}
+        friction={2}
+      >
+        <Pressable
+          onPress={handlePress}
+          style={({ pressed }) => [
+            styles.card,
+            pressed && styles.cardPressed,
+          ]}
+        >
+          {/* Top row: preview + timestamp */}
+          <View style={styles.row}>
+            <View style={styles.bodyRow}>
+              <PriorityDot priority={note.priority} />
+              <Text style={styles.body} numberOfLines={1}>
+                {note.body || 'Empty note'}
+              </Text>
+            </View>
+            <Text style={styles.timestamp}>
+              {relativeTime(note.updated_at)}
             </Text>
           </View>
-          <Text style={styles.timestamp}>
-            {relativeTime(note.updated_at)}
-          </Text>
-        </View>
 
-        {/* Bottom row: inline actions */}
-        <View style={styles.actionsRow}>
-          <Pressable
-            onPress={handleTogglePin}
-            hitSlop={6}
-            style={[
-              styles.actionChip,
-              note.is_pinned && styles.actionChipActive,
-            ]}
-          >
-            <Ionicons
-              name={note.is_pinned ? 'pin' : 'pin-outline'}
-              size={13}
-              color={note.is_pinned ? theme.colors.accent : theme.colors.textSecondary}
-            />
-            <Text
+          {/* Bottom row: inline actions */}
+          <View style={styles.actionsRow}>
+            <Pressable
+              onPress={handleTogglePin}
+              hitSlop={6}
               style={[
-                styles.actionLabel,
-                note.is_pinned && { color: theme.colors.accent },
+                styles.actionChip,
+                note.is_pinned && styles.actionChipActive,
               ]}
             >
-              {note.is_pinned ? 'Pinned' : 'Pin'}
-            </Text>
-          </Pressable>
+              <Ionicons
+                name={note.is_pinned ? 'pin' : 'pin-outline'}
+                size={13}
+                color={note.is_pinned ? theme.colors.accent : theme.colors.textSecondary}
+              />
+              <Text
+                style={[
+                  styles.actionLabel,
+                  note.is_pinned && { color: theme.colors.accent },
+                ]}
+              >
+                {note.is_pinned ? 'Pinned' : 'Pin'}
+              </Text>
+            </Pressable>
 
-          <Pressable
-            onPress={() => onOpenPriority?.(note.id)}
-            hitSlop={6}
-            style={styles.actionChip}
-          >
-            <View
-              style={[
-                styles.miniDot,
-                { backgroundColor: pColor || theme.colors.border },
-              ]}
-            />
-            <Text style={styles.actionLabel}>
-              {note.priority === 'none'
-                ? 'Priority'
-                : note.priority.charAt(0).toUpperCase() + note.priority.slice(1)}
-            </Text>
-          </Pressable>
-
-          <Pressable
-            onPress={() => onOpenReminder?.(note.id)}
-            hitSlop={6}
-            style={styles.actionChip}
-          >
-            <Ionicons
-              name={note.reminder_at ? 'alarm' : 'alarm-outline'}
-              size={13}
-              color={note.reminder_at ? theme.colors.accent : theme.colors.textSecondary}
-            />
-            <Text
-              style={[
-                styles.actionLabel,
-                note.reminder_at && { color: theme.colors.accent },
-              ]}
+            <Pressable
+              onPress={() => onOpenPriority?.(note.id)}
+              hitSlop={6}
+              style={styles.actionChip}
             >
-              {note.reminder_at
-                ? formatReminderTime(note.reminder_at)
-                : 'Remind'}
-            </Text>
-          </Pressable>
-        </View>
-      </Pressable>
-    </Swipeable>
+              <View
+                style={[
+                  styles.miniDot,
+                  { backgroundColor: pColor || theme.colors.border },
+                ]}
+              />
+              <Text style={styles.actionLabel}>
+                {note.priority === 'none'
+                  ? 'Priority'
+                  : note.priority.charAt(0).toUpperCase() + note.priority.slice(1)}
+              </Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => onOpenReminder?.(note.id)}
+              hitSlop={6}
+              style={styles.actionChip}
+            >
+              <Ionicons
+                name={note.reminder_at ? 'alarm' : 'alarm-outline'}
+                size={13}
+                color={note.reminder_at ? theme.colors.accent : theme.colors.textSecondary}
+              />
+              <Text
+                style={[
+                  styles.actionLabel,
+                  note.reminder_at && { color: theme.colors.accent },
+                ]}
+              >
+                {note.reminder_at
+                  ? formatReminderTime(note.reminder_at)
+                  : 'Remind'}
+              </Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Swipeable>
+    </Animated.View>
   );
 }
 
@@ -158,6 +200,9 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
+  },
+  cardPressed: {
+    backgroundColor: theme.colors.accentLight,
   },
   row: {
     flexDirection: 'row',
