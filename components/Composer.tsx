@@ -57,9 +57,8 @@ export function Composer() {
         if (value.length > 100) {
           await updateBody(note.id, value);
           await loadFeed();
-          Keyboard.dismiss();
           resetComposer();
-          router.push(`/note/${note.id}`);
+          router.push(`/note/${note.id}?autoFocus=true`);
         }
         return;
       }
@@ -71,9 +70,8 @@ export function Composer() {
           await updateBody(activeNote.id, value);
           await loadFeed();
           const noteId = activeNote.id;
-          Keyboard.dismiss();
           resetComposer();
-          router.push(`/note/${noteId}`);
+          router.push(`/note/${noteId}?autoFocus=true`);
           return;
         }
 

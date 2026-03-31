@@ -26,10 +26,12 @@ import {
 } from '../../utils/notifications';
 
 export default function NoteDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, autoFocus } = useLocalSearchParams<{ id: string; autoFocus?: string }>();
+  const shouldAutoFocus = autoFocus === 'true';
   const [note, setNote] = useState<Note | null>(null);
   const [body, setBody] = useState('');
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const editorRef = useRef<TextInput>(null);
   const priorityRef = useRef<PriorityPickerHandle>(null);
   const reminderRef = useRef<ReminderPickerHandle>(null);
   const notificationIdRef = useRef<string | null>(null);
@@ -47,6 +49,17 @@ export default function NoteDetailScreen() {
       }
     });
   }, [id]);
+
+  // Auto-focus when coming from composer expansion
+  useEffect(() => {
+    if (shouldAutoFocus && note) {
+      // Small delay to ensure the screen is fully mounted
+      const timer = setTimeout(() => {
+        editorRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [shouldAutoFocus, note]);
 
   // Auto-save on text change
   const handleChangeText = useCallback(
@@ -187,6 +200,7 @@ export default function NoteDetailScreen() {
           keyboardDismissMode="interactive"
         >
           <TextInput
+            ref={editorRef}
             style={styles.editor}
             value={body}
             onChangeText={handleChangeText}
@@ -195,6 +209,7 @@ export default function NoteDetailScreen() {
             textAlignVertical="top"
             placeholder="Start typing..."
             placeholderTextColor={theme.colors.textSecondary}
+            selection={shouldAutoFocus && body ? { start: body.length, end: body.length } : undefined}
           />
         </ScrollView>
 
