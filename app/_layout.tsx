@@ -3,12 +3,12 @@ import { Stack } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
 import { View, ActivityIndicator } from 'react-native';
-import { useFonts, Fredoka_700Bold } from '@expo-google-fonts/fredoka';
+import { useFonts, Gluten_700Bold } from '@expo-google-fonts/gluten';
 import { getDatabase } from '../db/schema';
 
 export default function RootLayout() {
   const [dbReady, setDbReady] = useState(false);
-  const [fontsLoaded] = useFonts({ Fredoka_700Bold });
+  const [fontsLoaded] = useFonts({ Gluten_700Bold });
 
   useEffect(() => {
     async function init() {
