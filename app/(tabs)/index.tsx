@@ -109,7 +109,10 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <Text style={styles.title}>Jot</Text>
+        <View style={styles.logoRow}>
+          <Text style={styles.title}>Jot</Text>
+          <Text style={styles.bolt}>⚡</Text>
+        </View>
       </View>
 
       <SectionList
@@ -166,10 +169,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.xl,
     paddingVertical: theme.spacing.sm,
   },
+  logoRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
   title: {
     fontSize: 32,
     fontFamily: 'Fredoka_700Bold',
     color: theme.colors.accent,
+  },
+  bolt: {
+    fontSize: 12,
+    marginLeft: -4,
+    marginTop: 2,
   },
   sectionHeader: {
     fontSize: theme.typography.label.fontSize,
