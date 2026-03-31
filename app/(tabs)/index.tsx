@@ -1,18 +1,36 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useRef, useState } from 'react';
 import { View, Text, SectionList, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
+import BottomSheet from '@gorhom/bottom-sheet';
 import { theme } from '../../constants/theme';
 import { useNoteStore } from '../../store/useNoteStore';
+import { Priority } from '../../types/note';
 import { Composer } from '../../components/Composer';
 import { NoteCard } from '../../components/NoteCard';
 import { PriorityFilter } from '../../components/PriorityFilter';
+import { PriorityPicker } from '../../components/PriorityPicker';
+import { ReminderPicker } from '../../components/ReminderPicker';
 import { EmptyState } from '../../components/EmptyState';
+import {
+  scheduleReminderNotification,
+  cancelNotification,
+} from '../../utils/notifications';
+import { getNoteById } from '../../db/queries';
 
 export default function HomeScreen() {
   const pinnedNotes = useNoteStore((s) => s.pinnedNotes);
   const recentNotes = useNoteStore((s) => s.recentNotes);
   const loadFeed = useNoteStore((s) => s.loadFeed);
+  const updatePriority = useNoteStore((s) => s.updatePriority);
+  const updateReminder = useNoteStore((s) => s.updateReminder);
+
+  // Track which note the inline pickers are targeting
+  const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
+  const [activeNotePriority, setActiveNotePriority] = useState<Priority>('none');
+  const [activeNoteReminder, setActiveNoteReminder] = useState<string | null>(null);
+  const priorityPickerRef = useRef<BottomSheet>(null);
+  const reminderPickerRef = useRef<BottomSheet>(null);
 
   useEffect(() => {
     loadFeed();
@@ -22,6 +40,62 @@ export default function HomeScreen() {
     useCallback(() => {
       loadFeed();
     }, [loadFeed])
+  );
+
+  const handleOpenPriority = useCallback(
+    async (noteId: string) => {
+      const note = await getNoteById(noteId);
+      if (note) {
+        setActiveNoteId(noteId);
+        setActiveNotePriority(note.priority);
+        priorityPickerRef.current?.expand();
+      }
+    },
+    []
+  );
+
+  const handleOpenReminder = useCallback(
+    async (noteId: string) => {
+      const note = await getNoteById(noteId);
+      if (note) {
+        setActiveNoteId(noteId);
+        setActiveNoteReminder(note.reminder_at);
+        reminderPickerRef.current?.expand();
+      }
+    },
+    []
+  );
+
+  const handlePrioritySelect = useCallback(
+    async (priority: Priority) => {
+      if (!activeNoteId) return;
+      await updatePriority(activeNoteId, priority);
+    },
+    [activeNoteId, updatePriority]
+  );
+
+  const handleReminderSelect = useCallback(
+    async (isoString: string | null) => {
+      if (!activeNoteId) return;
+      const note = await getNoteById(activeNoteId);
+
+      // Cancel old reminder notification if any
+      if (note?.reminder_at) {
+        // We don't store notification IDs per-note in this flow,
+        // but updateReminder handles the DB side
+      }
+
+      await updateReminder(activeNoteId, isoString);
+
+      if (isoString && note) {
+        await scheduleReminderNotification(
+          activeNoteId,
+          note.body.substring(0, 50),
+          new Date(isoString)
+        );
+      }
+    },
+    [activeNoteId, updateReminder]
   );
 
   const sections = [
@@ -51,12 +125,30 @@ export default function HomeScreen() {
         renderSectionHeader={({ section }) => (
           <Text style={styles.sectionHeader}>{section.title}</Text>
         )}
-        renderItem={({ item }) => <NoteCard note={item} />}
+        renderItem={({ item }) => (
+          <NoteCard
+            note={item}
+            onOpenPriority={handleOpenPriority}
+            onOpenReminder={handleOpenReminder}
+          />
+        )}
         ListEmptyComponent={
           <EmptyState message="No notes yet. Start typing above!" />
         }
         stickySectionHeadersEnabled={false}
         contentContainerStyle={styles.listContent}
+      />
+
+      {/* Shared bottom sheet pickers for inline card actions */}
+      <PriorityPicker
+        ref={priorityPickerRef}
+        currentPriority={activeNotePriority}
+        onSelect={handlePrioritySelect}
+      />
+      <ReminderPicker
+        ref={reminderPickerRef}
+        currentReminder={activeNoteReminder}
+        onSelect={handleReminderSelect}
       />
     </SafeAreaView>
   );
@@ -75,9 +167,9 @@ const styles = StyleSheet.create({
     paddingVertical: theme.spacing.sm,
   },
   title: {
-    fontSize: theme.typography.title.fontSize,
-    fontWeight: theme.typography.title.fontWeight,
-    color: theme.colors.textPrimary,
+    fontSize: 32,
+    fontFamily: 'Fredoka_700Bold',
+    color: theme.colors.accent,
   },
   sectionHeader: {
     fontSize: theme.typography.label.fontSize,

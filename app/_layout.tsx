@@ -3,10 +3,12 @@ import { Stack } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
 import { View, ActivityIndicator } from 'react-native';
+import { useFonts, Fredoka_700Bold } from '@expo-google-fonts/fredoka';
 import { getDatabase } from '../db/schema';
 
 export default function RootLayout() {
   const [dbReady, setDbReady] = useState(false);
+  const [fontsLoaded] = useFonts({ Fredoka_700Bold });
 
   useEffect(() => {
     async function init() {
@@ -41,7 +43,7 @@ export default function RootLayout() {
     setupNotifications();
   }, [dbReady]);
 
-  if (!dbReady) {
+  if (!dbReady || !fontsLoaded) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator size="large" color="#7C6BF0" />

@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { View, TextInput, Pressable, StyleSheet, Keyboard } from 'react-native';
+import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import BottomSheet from '@gorhom/bottom-sheet';
 import { theme, priorityColor } from '../constants/theme';
@@ -52,10 +53,31 @@ export function Composer() {
         const note = await createNote(value);
         setActiveNote(note);
         loadFeed();
+
+        // Check immediately if pasted text is > 100 chars
+        if (value.length > 100) {
+          await updateBody(note.id, value);
+          await loadFeed();
+          Keyboard.dismiss();
+          resetComposer();
+          router.push(`/note/${note.id}`);
+        }
         return;
       }
 
       if (activeNote) {
+        // Auto-expand to full screen at 100 characters
+        if (value.length > 100) {
+          if (debounceRef.current) clearTimeout(debounceRef.current);
+          await updateBody(activeNote.id, value);
+          await loadFeed();
+          const noteId = activeNote.id;
+          Keyboard.dismiss();
+          resetComposer();
+          router.push(`/note/${noteId}`);
+          return;
+        }
+
         // Debounced save
         if (debounceRef.current) clearTimeout(debounceRef.current);
         debounceRef.current = setTimeout(async () => {
@@ -64,7 +86,7 @@ export function Composer() {
         }, 300);
       }
     },
-    [activeNote, createNote, updateBody, loadFeed]
+    [activeNote, createNote, updateBody, loadFeed, resetComposer]
   );
 
   const handleBlur = useCallback(async () => {
