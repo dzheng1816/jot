@@ -24,6 +24,7 @@ export function Composer() {
   const priorityRef = useRef<PriorityPickerHandle>(null);
   const reminderRef = useRef<ReminderPickerHandle>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isExpandingRef = useRef(false);
   const shadowAnim = useRef(new Animated.Value(0.05)).current;
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
@@ -47,6 +48,9 @@ export function Composer() {
 
   const handleChangeText = useCallback(
     async (value: string) => {
+      // Guard: if we're in the middle of expanding to full screen, ignore
+      if (isExpandingRef.current) return;
+
       setText(value);
 
       if (!activeNote && value.length > 0) {
@@ -57,10 +61,17 @@ export function Composer() {
 
         // Check immediately if pasted text is > 100 chars
         if (value.length > 100) {
+          isExpandingRef.current = true;
           await updateBody(note.id, value);
           await loadFeed();
-          resetComposer();
-          router.push(`/note/${note.id}?autoFocus=true`);
+          // Blur the input first to prevent onBlur race condition
+          inputRef.current?.blur();
+          // Navigate after a tick to let blur settle
+          setTimeout(() => {
+            resetComposer();
+            isExpandingRef.current = false;
+            router.push(`/note/${note.id}?autoFocus=true`);
+          }, 50);
         }
         return;
       }
@@ -68,12 +79,18 @@ export function Composer() {
       if (activeNote) {
         // Auto-expand to full screen at 100 characters
         if (value.length > 100) {
+          isExpandingRef.current = true;
           if (debounceRef.current) clearTimeout(debounceRef.current);
           await updateBody(activeNote.id, value);
           await loadFeed();
           const noteId = activeNote.id;
-          resetComposer();
-          router.push(`/note/${noteId}?autoFocus=true`);
+          // Blur first to prevent handleBlur from interfering
+          inputRef.current?.blur();
+          setTimeout(() => {
+            resetComposer();
+            isExpandingRef.current = false;
+            router.push(`/note/${noteId}?autoFocus=true`);
+          }, 50);
           return;
         }
 
@@ -105,6 +122,9 @@ export function Composer() {
   }, []);
 
   const handleBlur = useCallback(async () => {
+    // If we're expanding to full screen, don't run blur cleanup
+    if (isExpandingRef.current) return;
+
     Animated.parallel([
       Animated.spring(scaleAnim, {
         toValue: 1,
