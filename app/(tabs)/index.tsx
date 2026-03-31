@@ -5,6 +5,7 @@ import { useFocusEffect } from 'expo-router';
 import { theme } from '../../constants/theme';
 import { useNoteStore } from '../../store/useNoteStore';
 import { Priority } from '../../types/note';
+import { JotLogo } from '../../components/JotLogo';
 import { Composer } from '../../components/Composer';
 import { NoteCard } from '../../components/NoteCard';
 import { PriorityFilter } from '../../components/PriorityFilter';
@@ -109,7 +110,7 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <Text style={styles.title}>Jot</Text>
+        <JotLogo size={52} />
       </View>
 
       <SectionList
@@ -165,11 +166,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: theme.spacing.xl,
     paddingVertical: theme.spacing.sm,
-  },
-  title: {
-    fontSize: 32,
-    fontFamily: 'Gluten_700Bold',
-    color: theme.colors.accent,
   },
   sectionHeader: {
     fontSize: theme.typography.label.fontSize,
