@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Expo Dev Server",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["expo", "start", "--clear"],
+      "port": 8081
+    }
+  ]
+}

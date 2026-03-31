@@ -1,24 +1,53 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Stack } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
+import { View, ActivityIndicator } from 'react-native';
 import { getDatabase } from '../db/schema';
-import {
-  setupNotificationResponseListener,
-  requestPermissions,
-} from '../utils/notifications';
-import { scheduleNextResurfacing } from '../utils/resurfacing';
 
 export default function RootLayout() {
+  const [dbReady, setDbReady] = useState(false);
+
   useEffect(() => {
     async function init() {
-      await getDatabase();
-      await requestPermissions();
-      setupNotificationResponseListener();
-      scheduleNextResurfacing();
+      try {
+        await getDatabase();
+      } catch (e) {
+        console.warn('DB init error:', e);
+      } finally {
+        setDbReady(true);
+      }
     }
     init();
   }, []);
+
+  // Defer notification setup to avoid crashing in Expo Go
+  useEffect(() => {
+    if (!dbReady) return;
+
+    async function setupNotifications() {
+      try {
+        const { requestPermissions, setupNotificationResponseListener } =
+          require('../utils/notifications');
+        await requestPermissions();
+        setupNotificationResponseListener();
+
+        const { scheduleNextResurfacing } = require('../utils/resurfacing');
+        await scheduleNextResurfacing();
+      } catch (e) {
+        console.warn('Notification setup error:', e);
+      }
+    }
+    setupNotifications();
+  }, [dbReady]);
+
+  if (!dbReady) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#7C6BF0" />
+      </View>
+    );
+  }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
