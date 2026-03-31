@@ -1,36 +1,34 @@
-import React, { forwardRef, useCallback, useMemo, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, Platform, Alert } from 'react-native';
-import BottomSheet, { BottomSheetBackdrop } from '@gorhom/bottom-sheet';
-import DateTimePicker, {
-  DateTimePickerEvent,
-} from '@react-native-community/datetimepicker';
+import React, { forwardRef, useImperativeHandle, useState } from 'react';
+import {
+  View,
+  Text,
+  Pressable,
+  StyleSheet,
+  Modal,
+  Platform,
+  Alert,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../constants/theme';
+
+export interface ReminderPickerHandle {
+  expand: () => void;
+  close: () => void;
+}
 
 interface Props {
   currentReminder: string | null;
   onSelect: (isoString: string | null) => void;
 }
 
-export const ReminderPicker = forwardRef<BottomSheet, Props>(
+export const ReminderPicker = forwardRef<ReminderPickerHandle, Props>(
   ({ currentReminder, onSelect }, ref) => {
-    const [showCustomPicker, setShowCustomPicker] = useState(false);
-    const [customDate, setCustomDate] = useState(new Date());
-    const snapPoints = useMemo(
-      () => [showCustomPicker ? '55%' : '40%'],
-      [showCustomPicker]
-    );
+    const [visible, setVisible] = useState(false);
 
-    const renderBackdrop = useCallback(
-      (props: any) => (
-        <BottomSheetBackdrop
-          {...props}
-          disappearsOnIndex={-1}
-          appearsOnIndex={0}
-        />
-      ),
-      []
-    );
+    useImperativeHandle(ref, () => ({
+      expand: () => setVisible(true),
+      close: () => setVisible(false),
+    }));
 
     const selectAndClose = (date: Date | null) => {
       if (date && date.getTime() <= Date.now()) {
@@ -38,8 +36,7 @@ export const ReminderPicker = forwardRef<BottomSheet, Props>(
         return;
       }
       onSelect(date ? date.toISOString() : null);
-      setShowCustomPicker(false);
-      (ref as React.RefObject<BottomSheet | null>)?.current?.close();
+      setVisible(false);
     };
 
     const inOneHour = () => {
@@ -63,6 +60,13 @@ export const ReminderPicker = forwardRef<BottomSheet, Props>(
       selectAndClose(d);
     };
 
+    const nextWeek = () => {
+      const d = new Date();
+      d.setDate(d.getDate() + 7);
+      d.setHours(9, 0, 0, 0);
+      selectAndClose(d);
+    };
+
     const formatQuickTime = (date: Date) =>
       date.toLocaleTimeString('en-US', {
         hour: 'numeric',
@@ -73,90 +77,77 @@ export const ReminderPicker = forwardRef<BottomSheet, Props>(
     const inOneHourDate = new Date(Date.now() + 60 * 60 * 1000);
 
     return (
-      <BottomSheet
-        ref={ref}
-        index={-1}
-        snapPoints={snapPoints}
-        enablePanDownToClose
-        backdropComponent={renderBackdrop}
-        backgroundStyle={{ backgroundColor: theme.colors.card }}
-        handleIndicatorStyle={{ backgroundColor: theme.colors.border }}
-        onChange={(index) => {
-          if (index === -1) setShowCustomPicker(false);
-        }}
+      <Modal
+        visible={visible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setVisible(false)}
       >
-        <View style={styles.content}>
-          <Text style={styles.title}>Remind me</Text>
+        <Pressable style={styles.overlay} onPress={() => setVisible(false)}>
+          <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.handle} />
+            <Text style={styles.title}>Remind me</Text>
 
-          <Pressable onPress={inOneHour} style={styles.option}>
-            <Text style={styles.optionLabel}>In 1 hour</Text>
-            <Text style={styles.optionMeta}>
-              {formatQuickTime(inOneHourDate)}
-            </Text>
-          </Pressable>
-
-          <Pressable onPress={tonight} style={styles.option}>
-            <Text style={styles.optionLabel}>Tonight</Text>
-            <Text style={styles.optionMeta}>9:00 PM</Text>
-          </Pressable>
-
-          <Pressable onPress={tomorrow} style={styles.option}>
-            <Text style={styles.optionLabel}>Tomorrow</Text>
-            <Text style={styles.optionMeta}>9:00 AM</Text>
-          </Pressable>
-
-          {!showCustomPicker ? (
-            <Pressable
-              onPress={() => setShowCustomPicker(true)}
-              style={styles.option}
-            >
-              <Text style={styles.optionLabel}>Pick date & time</Text>
-              <Ionicons
-                name="calendar-outline"
-                size={18}
-                color={theme.colors.textSecondary}
-              />
+            <Pressable onPress={inOneHour} style={styles.option}>
+              <Text style={styles.optionLabel}>In 1 hour</Text>
+              <Text style={styles.optionMeta}>
+                {formatQuickTime(inOneHourDate)}
+              </Text>
             </Pressable>
-          ) : (
-            <View style={styles.pickerContainer}>
-              <DateTimePicker
-                value={customDate}
-                mode="datetime"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                minimumDate={new Date()}
-                onChange={(_event: DateTimePickerEvent, date?: Date) => {
-                  if (date) setCustomDate(date);
-                }}
-                style={{ height: 120 }}
-              />
+
+            <Pressable onPress={tonight} style={styles.option}>
+              <Text style={styles.optionLabel}>Tonight</Text>
+              <Text style={styles.optionMeta}>9:00 PM</Text>
+            </Pressable>
+
+            <Pressable onPress={tomorrow} style={styles.option}>
+              <Text style={styles.optionLabel}>Tomorrow</Text>
+              <Text style={styles.optionMeta}>9:00 AM</Text>
+            </Pressable>
+
+            <Pressable onPress={nextWeek} style={styles.option}>
+              <Text style={styles.optionLabel}>Next week</Text>
+              <Text style={styles.optionMeta}>Mon 9:00 AM</Text>
+            </Pressable>
+
+            {currentReminder && (
               <Pressable
-                onPress={() => selectAndClose(customDate)}
-                style={styles.confirmButton}
+                onPress={() => selectAndClose(null)}
+                style={[styles.option, styles.removeOption]}
               >
-                <Text style={styles.confirmText}>Set Reminder</Text>
+                <Text style={styles.removeText}>Remove reminder</Text>
               </Pressable>
-            </View>
-          )}
-
-          {currentReminder && (
-            <Pressable
-              onPress={() => selectAndClose(null)}
-              style={[styles.option, styles.removeOption]}
-            >
-              <Text style={styles.removeText}>Remove reminder</Text>
-            </Pressable>
-          )}
-        </View>
-      </BottomSheet>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
     );
   }
 );
 ReminderPicker.displayName = 'ReminderPicker';
 
 const styles = StyleSheet.create({
-  content: {
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    backgroundColor: theme.colors.card,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     paddingHorizontal: theme.spacing.xl,
     paddingTop: theme.spacing.sm,
+    paddingBottom: 40,
+  },
+  handle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: theme.colors.border,
+    alignSelf: 'center',
+    marginBottom: 16,
+    marginTop: 8,
   },
   title: {
     fontSize: 16,
@@ -177,22 +168,6 @@ const styles = StyleSheet.create({
   optionMeta: {
     fontSize: 14,
     color: theme.colors.textSecondary,
-  },
-  pickerContainer: {
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  confirmButton: {
-    backgroundColor: theme.colors.accent,
-    paddingHorizontal: 24,
-    paddingVertical: 10,
-    borderRadius: theme.radius.pill,
-    marginTop: 8,
-  },
-  confirmText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 14,
   },
   removeOption: {
     marginTop: 8,

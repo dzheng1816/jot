@@ -12,14 +12,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
-import BottomSheet from '@gorhom/bottom-sheet';
 import { Ionicons } from '@expo/vector-icons';
 import { theme, priorityColor } from '../../constants/theme';
 import { Note, Priority } from '../../types/note';
 import { useNoteStore } from '../../store/useNoteStore';
 import { getNoteById } from '../../db/queries';
-import { PriorityPicker } from '../../components/PriorityPicker';
-import { ReminderPicker } from '../../components/ReminderPicker';
+import { PriorityPicker, PriorityPickerHandle } from '../../components/PriorityPicker';
+import { ReminderPicker, ReminderPickerHandle } from '../../components/ReminderPicker';
 import { relativeTime, formatReminderTime } from '../../utils/time';
 import {
   scheduleReminderNotification,
@@ -31,11 +30,11 @@ export default function NoteDetailScreen() {
   const [note, setNote] = useState<Note | null>(null);
   const [body, setBody] = useState('');
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const priorityRef = useRef<BottomSheet>(null);
-  const reminderRef = useRef<BottomSheet>(null);
+  const priorityRef = useRef<PriorityPickerHandle>(null);
+  const reminderRef = useRef<ReminderPickerHandle>(null);
   const notificationIdRef = useRef<string | null>(null);
 
-  const { updateBody, togglePin, updatePriority, updateReminder, deleteNote } =
+  const { updateBody, togglePin, updatePriority, updateReminder, deleteNote, loadFeed } =
     useNoteStore();
 
   // Load note
@@ -73,6 +72,19 @@ export default function NoteDetailScreen() {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
   }, []);
+
+  // "Done" — flush any pending save and go back
+  const handleDone = useCallback(async () => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
+    if (note && body !== note.body) {
+      await updateBody(note.id, body);
+    }
+    await loadFeed();
+    router.back();
+  }, [note, body, updateBody, loadFeed]);
 
   const handleTogglePin = useCallback(async () => {
     if (!note) return;
@@ -164,6 +176,9 @@ export default function NoteDetailScreen() {
           <Text style={styles.editedText}>
             Edited {relativeTime(note.updated_at)}
           </Text>
+          <Pressable onPress={handleDone} hitSlop={12} style={styles.doneButton}>
+            <Text style={styles.doneText}>Done</Text>
+          </Pressable>
         </View>
 
         {/* Editor */}
@@ -317,6 +332,17 @@ const styles = StyleSheet.create({
   editedText: {
     fontSize: theme.typography.caption.fontSize,
     color: theme.colors.textSecondary,
+  },
+  doneButton: {
+    backgroundColor: theme.colors.accent,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: theme.radius.pill,
+  },
+  doneText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
   editorScroll: {
     flex: 1,

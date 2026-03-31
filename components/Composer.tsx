@@ -2,12 +2,11 @@ import React, { useState, useRef, useCallback } from 'react';
 import { View, TextInput, Pressable, StyleSheet, Keyboard } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import BottomSheet from '@gorhom/bottom-sheet';
 import { theme, priorityColor } from '../constants/theme';
 import { Note, Priority } from '../types/note';
 import { useNoteStore } from '../store/useNoteStore';
-import { PriorityPicker } from './PriorityPicker';
-import { ReminderPicker } from './ReminderPicker';
+import { PriorityPicker, PriorityPickerHandle } from './PriorityPicker';
+import { ReminderPicker, ReminderPickerHandle } from './ReminderPicker';
 import {
   scheduleReminderNotification,
   cancelNotification,
@@ -22,8 +21,8 @@ export function Composer() {
   const [notificationId, setNotificationId] = useState<string | null>(null);
 
   const inputRef = useRef<TextInput>(null);
-  const priorityRef = useRef<BottomSheet>(null);
-  const reminderRef = useRef<BottomSheet>(null);
+  const priorityRef = useRef<PriorityPickerHandle>(null);
+  const reminderRef = useRef<ReminderPickerHandle>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const {

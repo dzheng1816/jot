@@ -1,9 +1,19 @@
-import React, { forwardRef, useCallback, useMemo } from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
-import BottomSheet, { BottomSheetBackdrop } from '@gorhom/bottom-sheet';
+import React, { forwardRef, useImperativeHandle, useState } from 'react';
+import {
+  View,
+  Text,
+  Pressable,
+  StyleSheet,
+  Modal,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme, priorityColor } from '../constants/theme';
 import { Priority } from '../types/note';
+
+export interface PriorityPickerHandle {
+  expand: () => void;
+  close: () => void;
+}
 
 interface Props {
   currentPriority: Priority;
@@ -17,79 +27,91 @@ const options: { label: string; value: Priority }[] = [
   { label: 'None', value: 'none' },
 ];
 
-export const PriorityPicker = forwardRef<BottomSheet, Props>(
+export const PriorityPicker = forwardRef<PriorityPickerHandle, Props>(
   ({ currentPriority, onSelect }, ref) => {
-    const snapPoints = useMemo(() => ['30%'], []);
+    const [visible, setVisible] = useState(false);
 
-    const renderBackdrop = useCallback(
-      (props: any) => (
-        <BottomSheetBackdrop
-          {...props}
-          disappearsOnIndex={-1}
-          appearsOnIndex={0}
-        />
-      ),
-      []
-    );
+    useImperativeHandle(ref, () => ({
+      expand: () => setVisible(true),
+      close: () => setVisible(false),
+    }));
 
     const handleSelect = (value: Priority) => {
       onSelect(value);
-      (ref as React.RefObject<BottomSheet | null>)?.current?.close();
+      setVisible(false);
     };
 
     return (
-      <BottomSheet
-        ref={ref}
-        index={-1}
-        snapPoints={snapPoints}
-        enablePanDownToClose
-        backdropComponent={renderBackdrop}
-        backgroundStyle={{ backgroundColor: theme.colors.card }}
-        handleIndicatorStyle={{ backgroundColor: theme.colors.border }}
+      <Modal
+        visible={visible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setVisible(false)}
       >
-        <View style={styles.content}>
-          <Text style={styles.title}>Priority</Text>
-          {options.map((opt) => {
-            const color = priorityColor(opt.value);
-            const isSelected = currentPriority === opt.value;
-            return (
-              <Pressable
-                key={opt.value}
-                onPress={() => handleSelect(opt.value)}
-                style={styles.option}
-              >
-                <View style={styles.optionLeft}>
-                  <View
-                    style={[
-                      styles.dot,
-                      {
-                        backgroundColor: color || theme.colors.border,
-                      },
-                    ]}
-                  />
-                  <Text style={styles.optionLabel}>{opt.label}</Text>
-                </View>
-                {isSelected && (
-                  <Ionicons
-                    name="checkmark"
-                    size={20}
-                    color={theme.colors.accent}
-                  />
-                )}
-              </Pressable>
-            );
-          })}
-        </View>
-      </BottomSheet>
+        <Pressable style={styles.overlay} onPress={() => setVisible(false)}>
+          <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.handle} />
+            <Text style={styles.title}>Priority</Text>
+            {options.map((opt) => {
+              const color = priorityColor(opt.value);
+              const isSelected = currentPriority === opt.value;
+              return (
+                <Pressable
+                  key={opt.value}
+                  onPress={() => handleSelect(opt.value)}
+                  style={styles.option}
+                >
+                  <View style={styles.optionLeft}>
+                    <View
+                      style={[
+                        styles.dot,
+                        {
+                          backgroundColor: color || theme.colors.border,
+                        },
+                      ]}
+                    />
+                    <Text style={styles.optionLabel}>{opt.label}</Text>
+                  </View>
+                  {isSelected && (
+                    <Ionicons
+                      name="checkmark"
+                      size={20}
+                      color={theme.colors.accent}
+                    />
+                  )}
+                </Pressable>
+              );
+            })}
+          </Pressable>
+        </Pressable>
+      </Modal>
     );
   }
 );
 PriorityPicker.displayName = 'PriorityPicker';
 
 const styles = StyleSheet.create({
-  content: {
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    backgroundColor: theme.colors.card,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     paddingHorizontal: theme.spacing.xl,
     paddingTop: theme.spacing.sm,
+    paddingBottom: 40,
+  },
+  handle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: theme.colors.border,
+    alignSelf: 'center',
+    marginBottom: 16,
+    marginTop: 8,
   },
   title: {
     fontSize: 16,

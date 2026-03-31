@@ -2,15 +2,14 @@ import React, { useEffect, useCallback, useRef, useState } from 'react';
 import { View, Text, SectionList, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
-import BottomSheet from '@gorhom/bottom-sheet';
 import { theme } from '../../constants/theme';
 import { useNoteStore } from '../../store/useNoteStore';
 import { Priority } from '../../types/note';
 import { Composer } from '../../components/Composer';
 import { NoteCard } from '../../components/NoteCard';
 import { PriorityFilter } from '../../components/PriorityFilter';
-import { PriorityPicker } from '../../components/PriorityPicker';
-import { ReminderPicker } from '../../components/ReminderPicker';
+import { PriorityPicker, PriorityPickerHandle } from '../../components/PriorityPicker';
+import { ReminderPicker, ReminderPickerHandle } from '../../components/ReminderPicker';
 import { EmptyState } from '../../components/EmptyState';
 import {
   scheduleReminderNotification,
@@ -29,8 +28,8 @@ export default function HomeScreen() {
   const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
   const [activeNotePriority, setActiveNotePriority] = useState<Priority>('none');
   const [activeNoteReminder, setActiveNoteReminder] = useState<string | null>(null);
-  const priorityPickerRef = useRef<BottomSheet>(null);
-  const reminderPickerRef = useRef<BottomSheet>(null);
+  const priorityPickerRef = useRef<PriorityPickerHandle>(null);
+  const reminderPickerRef = useRef<ReminderPickerHandle>(null);
 
   useEffect(() => {
     loadFeed();
