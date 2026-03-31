@@ -1,0 +1,236 @@
+import React, { useState, useRef, useCallback } from 'react';
+import { View, TextInput, Pressable, StyleSheet, Keyboard } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import BottomSheet from '@gorhom/bottom-sheet';
+import { theme, priorityColor } from '../constants/theme';
+import { Note, Priority } from '../types/note';
+import { useNoteStore } from '../store/useNoteStore';
+import { PriorityPicker } from './PriorityPicker';
+import { ReminderPicker } from './ReminderPicker';
+import {
+  scheduleReminderNotification,
+  cancelNotification,
+} from '../utils/notifications';
+
+export function Composer() {
+  const [text, setText] = useState('');
+  const [activeNote, setActiveNote] = useState<Note | null>(null);
+  const [priority, setPriority] = useState<Priority>('none');
+  const [isPinned, setIsPinned] = useState(false);
+  const [reminderAt, setReminderAt] = useState<string | null>(null);
+  const [notificationId, setNotificationId] = useState<string | null>(null);
+
+  const inputRef = useRef<TextInput>(null);
+  const priorityRef = useRef<BottomSheet>(null);
+  const reminderRef = useRef<BottomSheet>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const {
+    createNote,
+    updateBody,
+    togglePin,
+    updatePriority,
+    updateReminder,
+    loadFeed,
+  } = useNoteStore();
+
+  const resetComposer = useCallback(() => {
+    setText('');
+    setActiveNote(null);
+    setPriority('none');
+    setIsPinned(false);
+    setReminderAt(null);
+    setNotificationId(null);
+  }, []);
+
+  const handleChangeText = useCallback(
+    async (value: string) => {
+      setText(value);
+
+      if (!activeNote && value.length > 0) {
+        // First character: create note
+        const note = await createNote(value);
+        setActiveNote(note);
+        loadFeed();
+        return;
+      }
+
+      if (activeNote) {
+        // Debounced save
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+        debounceRef.current = setTimeout(async () => {
+          await updateBody(activeNote.id, value);
+          loadFeed();
+        }, 300);
+      }
+    },
+    [activeNote, createNote, updateBody, loadFeed]
+  );
+
+  const handleBlur = useCallback(async () => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
+
+    if (activeNote) {
+      if (text.trim() === '') {
+        // Delete empty note
+        const { deleteNote } = useNoteStore.getState();
+        await deleteNote(activeNote.id);
+      } else {
+        await updateBody(activeNote.id, text);
+      }
+      await loadFeed();
+    }
+    resetComposer();
+  }, [activeNote, text, updateBody, loadFeed, resetComposer]);
+
+  const handlePinToggle = useCallback(async () => {
+    const newPinned = !isPinned;
+    setIsPinned(newPinned);
+    if (activeNote) {
+      await togglePin(activeNote.id, newPinned);
+    }
+  }, [isPinned, activeNote, togglePin]);
+
+  const handlePrioritySelect = useCallback(
+    async (p: Priority) => {
+      setPriority(p);
+      if (activeNote) {
+        await updatePriority(activeNote.id, p);
+      }
+    },
+    [activeNote, updatePriority]
+  );
+
+  const handleReminderSelect = useCallback(
+    async (isoString: string | null) => {
+      setReminderAt(isoString);
+
+      // Cancel old notification
+      if (notificationId) {
+        await cancelNotification(notificationId);
+        setNotificationId(null);
+      }
+
+      if (activeNote) {
+        await updateReminder(activeNote.id, isoString);
+
+        // Schedule new notification
+        if (isoString) {
+          const nId = await scheduleReminderNotification(
+            activeNote.id,
+            text.substring(0, 50),
+            new Date(isoString)
+          );
+          setNotificationId(nId);
+        }
+      }
+    },
+    [activeNote, notificationId, text, updateReminder]
+  );
+
+  const pColor = priorityColor(priority);
+
+  return (
+    <>
+      <View style={styles.card}>
+        <TextInput
+          ref={inputRef}
+          style={styles.input}
+          placeholder="What's on your mind?"
+          placeholderTextColor={theme.colors.textSecondary}
+          value={text}
+          onChangeText={handleChangeText}
+          onBlur={handleBlur}
+          multiline
+          textAlignVertical="top"
+        />
+        <View style={styles.actions}>
+          <Pressable onPress={handlePinToggle} hitSlop={8}>
+            <Ionicons
+              name={isPinned ? 'pin' : 'pin-outline'}
+              size={20}
+              color={isPinned ? theme.colors.accent : theme.colors.textSecondary}
+            />
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              Keyboard.dismiss();
+              priorityRef.current?.expand();
+            }}
+            hitSlop={8}
+          >
+            <View
+              style={[
+                styles.priorityButton,
+                { backgroundColor: pColor || theme.colors.border },
+              ]}
+            />
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              Keyboard.dismiss();
+              reminderRef.current?.expand();
+            }}
+            hitSlop={8}
+          >
+            <Ionicons
+              name={reminderAt ? 'alarm' : 'alarm-outline'}
+              size={20}
+              color={
+                reminderAt ? theme.colors.accent : theme.colors.textSecondary
+              }
+            />
+          </Pressable>
+        </View>
+      </View>
+
+      <PriorityPicker
+        ref={priorityRef}
+        currentPriority={priority}
+        onSelect={handlePrioritySelect}
+      />
+      <ReminderPicker
+        ref={reminderRef}
+        currentReminder={reminderAt}
+        onSelect={handleReminderSelect}
+      />
+    </>
+  );
+}
+
+const styles = StyleSheet.create({
+  card: {
+    backgroundColor: theme.colors.card,
+    marginHorizontal: theme.spacing.md,
+    marginTop: theme.spacing.sm,
+    borderRadius: theme.radius.composer,
+    padding: theme.spacing.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  input: {
+    fontSize: theme.typography.body.fontSize,
+    color: theme.colors.textPrimary,
+    minHeight: 40,
+    maxHeight: 120,
+  },
+  actions: {
+    flexDirection: 'row',
+    gap: 20,
+    marginTop: theme.spacing.sm,
+    paddingTop: theme.spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
+  },
+  priorityButton: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+  },
+});

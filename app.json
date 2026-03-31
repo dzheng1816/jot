@@ -1,0 +1,33 @@
+{
+  "expo": {
+    "name": "Jot",
+    "slug": "jot",
+    "scheme": "jot",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F8F9FA"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.jot.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#F8F9FA"
+      },
+      "package": "com.jot.app",
+      "edgeToEdgeEnabled": true
+    },
+    "plugins": [
+      "expo-router",
+      "expo-notifications"
+    ]
+  }
+}
