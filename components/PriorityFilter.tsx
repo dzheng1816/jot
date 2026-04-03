@@ -1,47 +1,73 @@
 import React from 'react';
-import { View, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { theme } from '../constants/theme';
 import { Priority } from '../types/note';
 import { useNoteStore } from '../store/useNoteStore';
 
-type FilterValue = Priority | 'all';
-
-const filters: { value: FilterValue; color: string }[] = [
-  { value: 'all', color: theme.colors.accent },
-  { value: 'high', color: theme.colors.priorityHigh },
-  { value: 'medium', color: theme.colors.priorityMed },
-  { value: 'low', color: theme.colors.priorityLow },
-];
+type FilterValue = Priority | 'all' | 'reminder';
 
 export function PriorityFilter() {
   const priorityFilter = useNoteStore((s) => s.priorityFilter);
   const setPriorityFilter = useNoteStore((s) => s.setPriorityFilter);
 
+  const isAll = priorityFilter === 'all';
+  const isReminder = priorityFilter === 'reminder';
+
   return (
     <View style={styles.container}>
-      <View style={styles.dots}>
-        {filters.map((f) => {
-          const isActive = priorityFilter === f.value;
-          return (
-            <Pressable
-              key={f.value}
-              onPress={() => setPriorityFilter(f.value)}
-              hitSlop={8}
-            >
-              <View
-                style={[
-                  styles.dot,
-                  { backgroundColor: f.color },
-                  isActive && styles.dotActive,
-                  !isActive && styles.dotInactive,
-                ]}
-              />
-            </Pressable>
-          );
-        })}
+      <View style={styles.chips}>
+        {/* All chip */}
+        <Pressable
+          onPress={() => setPriorityFilter('all')}
+          style={[
+            styles.allChip,
+            isAll
+              ? { backgroundColor: theme.colors.accent }
+              : { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: theme.colors.accent },
+          ]}
+        >
+          <Text style={[styles.allText, { color: isAll ? '#fff' : theme.colors.accent }]}>
+            All
+          </Text>
+        </Pressable>
+
+        {/* Priority color chips */}
+        {([
+          { value: 'high' as FilterValue, color: theme.colors.priorityHigh },
+          { value: 'medium' as FilterValue, color: theme.colors.priorityMed },
+          { value: 'low' as FilterValue, color: theme.colors.priorityLow },
+        ]).map((f) => (
+          <Pressable
+            key={f.value}
+            onPress={() => setPriorityFilter(f.value as any)}
+            style={[
+              styles.colorChip,
+              { backgroundColor: f.color },
+              priorityFilter !== f.value && { opacity: 0.3 },
+            ]}
+          />
+        ))}
+
+        {/* Reminder clock filter */}
+        <Pressable
+          onPress={() => setPriorityFilter('reminder' as any)}
+          style={[
+            styles.clockChip,
+            isReminder
+              ? { backgroundColor: theme.colors.accent }
+              : { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: theme.colors.textSecondary },
+          ]}
+        >
+          <Ionicons
+            name="alarm-outline"
+            size={14}
+            color={isReminder ? '#fff' : theme.colors.textSecondary}
+          />
+        </Pressable>
       </View>
+
       <Pressable onPress={() => router.push('/search')} hitSlop={8}>
         <Ionicons
           name="search-outline"
@@ -62,24 +88,30 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.lg,
     marginBottom: theme.spacing.sm,
   },
-  dots: {
+  chips: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
+    gap: 10,
   },
-  dot: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
+  allChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 5,
+    borderRadius: 10,
   },
-  dotActive: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 3,
-    borderColor: 'rgba(0,0,0,0.15)',
+  allText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
-  dotInactive: {
-    opacity: 0.35,
+  colorChip: {
+    width: 32,
+    height: 20,
+    borderRadius: 6,
+  },
+  clockChip: {
+    width: 32,
+    height: 20,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

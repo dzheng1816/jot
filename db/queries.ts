@@ -53,7 +53,8 @@ export async function getNoteById(id: string): Promise<Note | null> {
 }
 
 export async function getFeedNotes(
-  priorityFilter?: Priority
+  priorityFilter?: Priority,
+  reminderOnly?: boolean
 ): Promise<{ pinned: Note[]; recent: Note[] }> {
   const db = await getDatabase();
   let query = `SELECT * FROM notes WHERE is_deleted = 0`;
@@ -62,6 +63,10 @@ export async function getFeedNotes(
   if (priorityFilter && priorityFilter !== 'none') {
     query += ` AND priority = ?`;
     params.push(priorityFilter);
+  }
+
+  if (reminderOnly) {
+    query += ` AND reminder_at IS NOT NULL`;
   }
 
   query += ` ORDER BY is_pinned DESC, updated_at DESC`;

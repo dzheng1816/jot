@@ -6,13 +6,13 @@ interface NoteStore {
   // State
   pinnedNotes: Note[];
   recentNotes: Note[];
-  priorityFilter: Priority | 'all';
+  priorityFilter: Priority | 'all' | 'reminder';
   isLoading: boolean;
   settings: AppSettings;
 
   // Actions
   loadFeed: () => Promise<void>;
-  setPriorityFilter: (filter: Priority | 'all') => Promise<void>;
+  setPriorityFilter: (filter: Priority | 'all' | 'reminder') => Promise<void>;
   createNote: (body?: string) => Promise<Note>;
   updateBody: (id: string, body: string) => Promise<void>;
   togglePin: (id: string, isPinned: boolean) => Promise<void>;
@@ -34,15 +34,17 @@ export const useNoteStore = create<NoteStore>((set, get) => ({
 
   loadFeed: async () => {
     const filter = get().priorityFilter;
-    const priorityArg = filter === 'all' ? undefined : filter;
-    const { pinned, recent } = await queries.getFeedNotes(priorityArg);
+    const priorityArg = filter === 'all' || filter === 'reminder' ? undefined : filter;
+    const reminderOnly = filter === 'reminder';
+    const { pinned, recent } = await queries.getFeedNotes(priorityArg, reminderOnly);
     set({ pinnedNotes: pinned, recentNotes: recent });
   },
 
   setPriorityFilter: async (filter) => {
     set({ priorityFilter: filter });
-    const priorityArg = filter === 'all' ? undefined : filter;
-    const { pinned, recent } = await queries.getFeedNotes(priorityArg);
+    const priorityArg = filter === 'all' || filter === 'reminder' ? undefined : filter;
+    const reminderOnly = filter === 'reminder';
+    const { pinned, recent } = await queries.getFeedNotes(priorityArg, reminderOnly);
     set({ pinnedNotes: pinned, recentNotes: recent });
   },
 
