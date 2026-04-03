@@ -188,7 +188,10 @@ const styles = StyleSheet.create({
     minHeight: 160,
     maxHeight: 280,
     textAlignVertical: 'top',
-  },
+    outlineStyle: 'none',
+    borderWidth: 0,
+    padding: 0,
+  } as any,
   actionsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',

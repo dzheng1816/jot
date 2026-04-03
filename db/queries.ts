@@ -146,11 +146,41 @@ export async function updateLastResurfaced(id: string): Promise<void> {
   ]);
 }
 
-// -- Delete --
+// -- Delete / Archive --
 
 export async function softDeleteNote(id: string): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(`UPDATE notes SET is_deleted = 1 WHERE id = ?`, [id]);
+}
+
+export async function restoreNote(id: string): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync(`UPDATE notes SET is_deleted = 0 WHERE id = ?`, [id]);
+}
+
+export async function permanentlyDeleteNote(id: string): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync(`DELETE FROM notes WHERE id = ?`, [id]);
+}
+
+export async function permanentlyDeleteNotes(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  const db = await getDatabase();
+  const placeholders = ids.map(() => '?').join(',');
+  await db.runAsync(`DELETE FROM notes WHERE id IN (${placeholders})`, ids);
+}
+
+export async function deleteAllArchivedNotes(): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync(`DELETE FROM notes WHERE is_deleted = 1`);
+}
+
+export async function getArchivedNotes(): Promise<Note[]> {
+  const db = await getDatabase();
+  const rows = await db.getAllAsync(
+    `SELECT * FROM notes WHERE is_deleted = 1 ORDER BY updated_at DESC`
+  );
+  return rows.map(rowToNote);
 }
 
 export async function deleteAllNotes(): Promise<void> {

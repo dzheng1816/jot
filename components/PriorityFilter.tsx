@@ -6,7 +6,7 @@ import { theme } from '../constants/theme';
 import { Priority } from '../types/note';
 import { useNoteStore } from '../store/useNoteStore';
 
-type FilterValue = Priority | 'all' | 'reminder';
+type FilterValue = Priority | 'all' | 'reminder' | 'archive';
 
 export function PriorityFilter() {
   const priorityFilter = useNoteStore((s) => s.priorityFilter);
@@ -14,6 +14,7 @@ export function PriorityFilter() {
 
   const isAll = priorityFilter === 'all';
   const isReminder = priorityFilter === 'reminder';
+  const isArchive = priorityFilter === 'archive';
 
   return (
     <View style={styles.container}>
@@ -64,6 +65,23 @@ export function PriorityFilter() {
             name="alarm-outline"
             size={14}
             color={isReminder ? '#fff' : theme.colors.textSecondary}
+          />
+        </Pressable>
+
+        {/* Archive filter */}
+        <Pressable
+          onPress={() => setPriorityFilter('archive' as any)}
+          style={[
+            styles.clockChip,
+            isArchive
+              ? { backgroundColor: theme.colors.textSecondary }
+              : { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: theme.colors.textSecondary },
+          ]}
+        >
+          <Ionicons
+            name="trash-outline"
+            size={14}
+            color={isArchive ? '#fff' : theme.colors.textSecondary}
           />
         </Pressable>
       </View>

@@ -21,14 +21,20 @@ interface Props {
   index?: number;
   onOpenPriority?: (noteId: string) => void;
   onOpenReminder?: (noteId: string) => void;
+  isArchived?: boolean;
+  isSelected?: boolean;
+  onToggleSelect?: (noteId: string) => void;
+  selectMode?: boolean;
 }
 
-export function NoteCard({ note, index = 0, onOpenPriority, onOpenReminder }: Props) {
+export function NoteCard({ note, index = 0, onOpenPriority, onOpenReminder, isArchived, isSelected, onToggleSelect, selectMode }: Props) {
   const swipeableRef = useRef<Swipeable>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(12)).current;
   const deleteNote = useNoteStore((s) => s.deleteNote);
   const togglePin = useNoteStore((s) => s.togglePin);
+  const restoreNote = useNoteStore((s) => s.restoreNote);
+  const permanentlyDeleteNote = useNoteStore((s) => s.permanentlyDeleteNote);
 
   useEffect(() => {
     const delay = Math.min(index * 50, 300);
@@ -49,11 +55,24 @@ export function NoteCard({ note, index = 0, onOpenPriority, onOpenReminder }: Pr
   }, []);
 
   const handlePress = () => {
+    if (selectMode && onToggleSelect) {
+      onToggleSelect(note.id);
+      return;
+    }
+    if (isArchived) return;
     router.push(`/note/${note.id}`);
   };
 
   const handleDelete = () => {
-    deleteNote(note.id);
+    if (isArchived) {
+      permanentlyDeleteNote(note.id);
+    } else {
+      deleteNote(note.id);
+    }
+  };
+
+  const handleRestore = () => {
+    restoreNote(note.id);
   };
 
   const handleTogglePin = async () => {
@@ -106,6 +125,19 @@ export function NoteCard({ note, index = 0, onOpenPriority, onOpenReminder }: Pr
         >
           {/* Top row: preview + timestamp */}
           <View style={styles.row}>
+            {selectMode && (
+              <Pressable
+                onPress={() => onToggleSelect?.(note.id)}
+                hitSlop={6}
+                style={styles.checkbox}
+              >
+                <Ionicons
+                  name={isSelected ? 'checkbox' : 'square-outline'}
+                  size={20}
+                  color={isSelected ? theme.colors.accent : theme.colors.textSecondary}
+                />
+              </Pressable>
+            )}
             <View style={styles.bodyRow}>
               <PriorityDot priority={note.priority} />
               <Text style={styles.body} numberOfLines={1}>
@@ -119,68 +151,96 @@ export function NoteCard({ note, index = 0, onOpenPriority, onOpenReminder }: Pr
 
           {/* Bottom row: inline actions */}
           <View style={styles.actionsRow}>
-            <Pressable
-              onPress={handleTogglePin}
-              hitSlop={6}
-              style={[
-                styles.actionChip,
-                note.is_pinned && styles.actionChipActive,
-              ]}
-            >
-              <Ionicons
-                name={note.is_pinned ? 'pin' : 'pin-outline'}
-                size={13}
-                color={note.is_pinned ? theme.colors.accent : theme.colors.textSecondary}
-              />
-              <Text
-                style={[
-                  styles.actionLabel,
-                  note.is_pinned && { color: theme.colors.accent },
-                ]}
-              >
-                {note.is_pinned ? 'Pinned' : 'Pin'}
-              </Text>
-            </Pressable>
+            {isArchived ? (
+              <>
+                <Pressable
+                  onPress={handleRestore}
+                  hitSlop={6}
+                  style={[styles.actionChip, styles.actionChipActive]}
+                >
+                  <Ionicons name="arrow-undo-outline" size={13} color={theme.colors.accent} />
+                  <Text style={[styles.actionLabel, { color: theme.colors.accent }]}>Restore</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => {
+                    Alert.alert('Delete permanently?', 'This cannot be undone.', [
+                      { text: 'Cancel', style: 'cancel' },
+                      { text: 'Delete', style: 'destructive', onPress: handleDelete },
+                    ]);
+                  }}
+                  hitSlop={6}
+                  style={styles.actionChip}
+                >
+                  <Ionicons name="trash-outline" size={13} color={theme.colors.danger} />
+                  <Text style={[styles.actionLabel, { color: theme.colors.danger }]}>Delete</Text>
+                </Pressable>
+              </>
+            ) : (
+              <>
+                <Pressable
+                  onPress={handleTogglePin}
+                  hitSlop={6}
+                  style={[
+                    styles.actionChip,
+                    note.is_pinned && styles.actionChipActive,
+                  ]}
+                >
+                  <Ionicons
+                    name={note.is_pinned ? 'pin' : 'pin-outline'}
+                    size={13}
+                    color={note.is_pinned ? theme.colors.accent : theme.colors.textSecondary}
+                  />
+                  <Text
+                    style={[
+                      styles.actionLabel,
+                      note.is_pinned && { color: theme.colors.accent },
+                    ]}
+                  >
+                    {note.is_pinned ? 'Pinned' : 'Pin'}
+                  </Text>
+                </Pressable>
 
-            <Pressable
-              onPress={() => onOpenPriority?.(note.id)}
-              hitSlop={6}
-              style={styles.actionChip}
-            >
-              <View
-                style={[
-                  styles.miniDot,
-                  { backgroundColor: pColor || theme.colors.border },
-                ]}
-              />
-              <Text style={styles.actionLabel}>
-                {note.priority === 'none'
-                  ? 'Priority'
-                  : note.priority.charAt(0).toUpperCase() + note.priority.slice(1)}
-              </Text>
-            </Pressable>
+                <Pressable
+                  onPress={() => onOpenPriority?.(note.id)}
+                  hitSlop={6}
+                  style={styles.actionChip}
+                >
+                  <View
+                    style={[
+                      styles.miniDot,
+                      { backgroundColor: pColor || theme.colors.border },
+                    ]}
+                  />
+                  <Text style={styles.actionLabel}>
+                    {note.priority === 'none'
+                      ? 'Priority'
+                      : note.priority.charAt(0).toUpperCase() + note.priority.slice(1)}
+                  </Text>
+                </Pressable>
 
-            <Pressable
-              onPress={() => onOpenReminder?.(note.id)}
-              hitSlop={6}
-              style={styles.actionChip}
-            >
-              <Ionicons
-                name={note.reminder_at ? 'alarm' : 'alarm-outline'}
-                size={13}
-                color={note.reminder_at ? theme.colors.accent : theme.colors.textSecondary}
-              />
-              <Text
-                style={[
-                  styles.actionLabel,
-                  note.reminder_at && { color: theme.colors.accent },
-                ]}
-              >
-                {note.reminder_at
-                  ? formatReminderTime(note.reminder_at)
-                  : 'Remind'}
-              </Text>
-            </Pressable>
+                <Pressable
+                  onPress={() => onOpenReminder?.(note.id)}
+                  hitSlop={6}
+                  style={styles.actionChip}
+                >
+                  <Ionicons
+                    name={note.reminder_at ? 'alarm' : 'alarm-outline'}
+                    size={13}
+                    color={note.reminder_at ? theme.colors.accent : theme.colors.textSecondary}
+                  />
+                  <Text
+                    style={[
+                      styles.actionLabel,
+                      note.reminder_at && { color: theme.colors.accent },
+                    ]}
+                  >
+                    {note.reminder_at
+                      ? formatReminderTime(note.reminder_at)
+                      : 'Remind'}
+                  </Text>
+                </Pressable>
+              </>
+            )}
           </View>
         </Pressable>
       </Swipeable>
@@ -210,6 +270,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  checkbox: {
+    marginRight: 8,
   },
   bodyRow: {
     flexDirection: 'row',

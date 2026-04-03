@@ -2,23 +2,30 @@ import { create } from 'zustand';
 import { Note, Priority, AppSettings } from '../types/note';
 import * as queries from '../db/queries';
 
+type FilterValue = Priority | 'all' | 'reminder' | 'archive';
+
 interface NoteStore {
   // State
   pinnedNotes: Note[];
   recentNotes: Note[];
-  priorityFilter: Priority | 'all' | 'reminder';
+  archivedNotes: Note[];
+  priorityFilter: FilterValue;
   isLoading: boolean;
   settings: AppSettings;
 
   // Actions
   loadFeed: () => Promise<void>;
-  setPriorityFilter: (filter: Priority | 'all' | 'reminder') => Promise<void>;
+  setPriorityFilter: (filter: FilterValue) => Promise<void>;
   createNote: (body?: string) => Promise<Note>;
   updateBody: (id: string, body: string) => Promise<void>;
   togglePin: (id: string, isPinned: boolean) => Promise<void>;
   updatePriority: (id: string, priority: Priority) => Promise<void>;
   updateReminder: (id: string, reminderAt: string | null) => Promise<void>;
   deleteNote: (id: string) => Promise<void>;
+  restoreNote: (id: string) => Promise<void>;
+  permanentlyDeleteNote: (id: string) => Promise<void>;
+  permanentlyDeleteNotes: (ids: string[]) => Promise<void>;
+  deleteAllArchivedNotes: () => Promise<void>;
   deleteAllNotes: () => Promise<void>;
   searchNotes: (query: string) => Promise<Note[]>;
   loadSettings: () => Promise<void>;
@@ -28,12 +35,18 @@ interface NoteStore {
 export const useNoteStore = create<NoteStore>((set, get) => ({
   pinnedNotes: [],
   recentNotes: [],
+  archivedNotes: [],
   priorityFilter: 'all',
   isLoading: false,
   settings: { resurfacing_enabled: true },
 
   loadFeed: async () => {
     const filter = get().priorityFilter;
+    if (filter === 'archive') {
+      const archived = await queries.getArchivedNotes();
+      set({ archivedNotes: archived });
+      return;
+    }
     const priorityArg = filter === 'all' || filter === 'reminder' ? undefined : filter;
     const reminderOnly = filter === 'reminder';
     const { pinned, recent } = await queries.getFeedNotes(priorityArg, reminderOnly);
@@ -42,6 +55,11 @@ export const useNoteStore = create<NoteStore>((set, get) => ({
 
   setPriorityFilter: async (filter) => {
     set({ priorityFilter: filter });
+    if (filter === 'archive') {
+      const archived = await queries.getArchivedNotes();
+      set({ archivedNotes: archived });
+      return;
+    }
     const priorityArg = filter === 'all' || filter === 'reminder' ? undefined : filter;
     const reminderOnly = filter === 'reminder';
     const { pinned, recent } = await queries.getFeedNotes(priorityArg, reminderOnly);
@@ -75,6 +93,26 @@ export const useNoteStore = create<NoteStore>((set, get) => ({
   deleteNote: async (id) => {
     await queries.softDeleteNote(id);
     await get().loadFeed();
+  },
+
+  restoreNote: async (id) => {
+    await queries.restoreNote(id);
+    await get().loadFeed();
+  },
+
+  permanentlyDeleteNote: async (id) => {
+    await queries.permanentlyDeleteNote(id);
+    await get().loadFeed();
+  },
+
+  permanentlyDeleteNotes: async (ids) => {
+    await queries.permanentlyDeleteNotes(ids);
+    await get().loadFeed();
+  },
+
+  deleteAllArchivedNotes: async () => {
+    await queries.deleteAllArchivedNotes();
+    set({ archivedNotes: [] });
   },
 
   deleteAllNotes: async () => {

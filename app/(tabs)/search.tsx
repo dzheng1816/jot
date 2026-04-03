@@ -112,7 +112,9 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.body.fontSize,
     color: theme.colors.textPrimary,
     paddingVertical: 12,
-  },
+    outlineStyle: 'none',
+    borderWidth: 0,
+  } as any,
   listContent: {
     paddingBottom: 100,
   },

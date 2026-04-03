@@ -379,7 +379,9 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     paddingTop: theme.spacing.md,
     minHeight: 200,
-  },
+    outlineStyle: 'none',
+    borderWidth: 0,
+  } as any,
   actionsContainer: {
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.sm,
