@@ -24,6 +24,7 @@ import {
   scheduleReminderNotification,
   cancelNotification,
 } from '../../utils/notifications';
+import { processAutoList } from '../../utils/autoList';
 
 export default function NoteDetailScreen() {
   const { id, autoFocus } = useLocalSearchParams<{ id: string; autoFocus?: string }>();
@@ -63,7 +64,8 @@ export default function NoteDetailScreen() {
 
   // Auto-save on text change
   const handleChangeText = useCallback(
-    (value: string) => {
+    (rawValue: string) => {
+      const { text: value } = processAutoList(body, rawValue);
       setBody(value);
       if (!note) return;
       if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -76,7 +78,7 @@ export default function NoteDetailScreen() {
         );
       }, 300);
     },
-    [note, updateBody]
+    [note, body, updateBody]
   );
 
   // Cleanup debounce on unmount

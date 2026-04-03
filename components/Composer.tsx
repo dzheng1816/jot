@@ -8,6 +8,7 @@ import { useNoteStore } from '../store/useNoteStore';
 import { PriorityPicker, PriorityPickerHandle } from './PriorityPicker';
 import { ReminderPicker, ReminderPickerHandle } from './ReminderPicker';
 import { scheduleReminderNotification } from '../utils/notifications';
+import { processAutoList } from '../utils/autoList';
 
 export function Composer() {
   // All draft state — nothing touches the DB until "Jot" is tapped
@@ -57,7 +58,9 @@ export function Composer() {
 
   // Auto-expand to full screen at 100 characters
   const handleChangeText = useCallback(
-    async (value: string) => {
+    async (rawValue: string) => {
+      // Auto-list processing
+      const { text: value } = processAutoList(text, rawValue);
       setText(value);
 
       if (value.length > 100) {
