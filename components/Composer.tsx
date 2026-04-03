@@ -216,7 +216,6 @@ const styles = StyleSheet.create({
   jotButtonText: {
     color: '#fff',
     fontSize: 14,
-    fontWeight: '600',
-    fontFamily: 'Gluten_700Bold',
+    fontWeight: '700',
   },
 });

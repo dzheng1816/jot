@@ -100,7 +100,7 @@ const styles = StyleSheet.create({
   },
   allText: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   colorChip: {
     width: 32,
