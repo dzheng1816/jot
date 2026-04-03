@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet, Keyboard, Animated } from 'react-native';
+import { View, Text, TextInput, Pressable, StyleSheet, Keyboard } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { theme, priorityColor } from '../constants/theme';
@@ -19,16 +19,13 @@ export function Composer() {
   const [isPinned, setIsPinned] = useState(false);
   const [reminderAt, setReminderAt] = useState<string | null>(null);
   const [notificationId, setNotificationId] = useState<string | null>(null);
-  const [isFocused, setIsFocused] = useState(false);
 
   const inputRef = useRef<TextInput>(null);
   const priorityRef = useRef<PriorityPickerHandle>(null);
   const reminderRef = useRef<ReminderPickerHandle>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isExpandingRef = useRef(false);
-  const isOpeningPickerRef = useRef(false);
-  const shadowAnim = useRef(new Animated.Value(0.05)).current;
-  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const activeNoteRef = useRef<Note | null>(null); // mirror for async callbacks
+  const textRef = useRef(''); // mirror for async callbacks
 
   const {
     createNote,
@@ -36,22 +33,23 @@ export function Composer() {
     togglePin,
     updatePriority,
     updateReminder,
+    deleteNote,
     loadFeed,
   } = useNoteStore();
 
   const resetComposer = useCallback(() => {
     setText('');
+    textRef.current = '';
     setActiveNote(null);
+    activeNoteRef.current = null;
     setPriority('none');
     setIsPinned(false);
     setReminderAt(null);
     setNotificationId(null);
-    setIsFocused(false);
   }, []);
 
   // "Jot" (done) button — save, dismiss, reset
   const handleDone = useCallback(async () => {
-    isExpandingRef.current = true; // prevent blur cleanup
     Keyboard.dismiss();
 
     if (debounceRef.current) {
@@ -59,166 +57,106 @@ export function Composer() {
       debounceRef.current = null;
     }
 
-    if (activeNote) {
-      if (text.trim() === '') {
-        const { deleteNote } = useNoteStore.getState();
-        await deleteNote(activeNote.id);
+    const note = activeNoteRef.current;
+    const currentText = textRef.current;
+
+    if (note) {
+      if (currentText.trim() === '') {
+        await deleteNote(note.id);
       } else {
-        await updateBody(activeNote.id, text);
+        await updateBody(note.id, currentText);
       }
       await loadFeed();
     }
 
     resetComposer();
-    isExpandingRef.current = false;
-  }, [activeNote, text, updateBody, loadFeed, resetComposer]);
+  }, [updateBody, deleteNote, loadFeed, resetComposer]);
 
   const handleChangeText = useCallback(
     async (value: string) => {
-      if (isExpandingRef.current) return;
-
       setText(value);
+      textRef.current = value;
 
-      if (!activeNote && value.length > 0) {
+      // First character typed — create a new note
+      if (!activeNoteRef.current && value.length > 0) {
         const note = await createNote(value);
         setActiveNote(note);
+        activeNoteRef.current = note;
         loadFeed();
 
-        // Pasted text > 100 chars: expand immediately
+        // If pasted text is already >100 chars, expand immediately
         if (value.length > 100) {
-          isExpandingRef.current = true;
           await updateBody(note.id, value);
           await loadFeed();
-          inputRef.current?.blur();
-          setTimeout(() => {
-            resetComposer();
-            isExpandingRef.current = false;
-            router.push(`/note/${note.id}?autoFocus=true`);
-          }, 50);
+          resetComposer();
+          router.push(`/note/${note.id}?autoFocus=true`);
         }
         return;
       }
 
-      if (activeNote) {
+      if (activeNoteRef.current) {
         // Auto-expand to full screen at 100 characters
         if (value.length > 100) {
-          isExpandingRef.current = true;
           if (debounceRef.current) clearTimeout(debounceRef.current);
-          // Save current text immediately
-          await updateBody(activeNote.id, value);
+          const noteId = activeNoteRef.current.id;
+          await updateBody(noteId, value);
           await loadFeed();
-          const noteId = activeNote.id;
-          inputRef.current?.blur();
-          setTimeout(() => {
-            resetComposer();
-            isExpandingRef.current = false;
-            router.push(`/note/${noteId}?autoFocus=true`);
-          }, 50);
+          resetComposer();
+          router.push(`/note/${noteId}?autoFocus=true`);
           return;
         }
 
         // Debounced save
         if (debounceRef.current) clearTimeout(debounceRef.current);
         debounceRef.current = setTimeout(async () => {
-          await updateBody(activeNote.id, value);
-          loadFeed();
+          if (activeNoteRef.current) {
+            await updateBody(activeNoteRef.current.id, textRef.current);
+            loadFeed();
+          }
         }, 300);
       }
     },
-    [activeNote, createNote, updateBody, loadFeed, resetComposer]
+    [createNote, updateBody, loadFeed, resetComposer]
   );
 
-  const handleFocus = useCallback(() => {
-    setIsFocused(true);
-    Animated.parallel([
-      Animated.spring(scaleAnim, {
-        toValue: 1.02,
-        useNativeDriver: true,
-        speed: 20,
-        bounciness: 4,
-      }),
-      Animated.timing(shadowAnim, {
-        toValue: 0.12,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, []);
-
+  // On blur: just save, don't reset (user might tap priority/reminder)
   const handleBlur = useCallback(async () => {
-    // Skip blur cleanup when expanding to full screen or opening a picker
-    if (isExpandingRef.current || isOpeningPickerRef.current) {
-      isOpeningPickerRef.current = false;
-      return;
-    }
-
-    Animated.parallel([
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        useNativeDriver: true,
-        speed: 20,
-        bounciness: 4,
-      }),
-      Animated.timing(shadowAnim, {
-        toValue: 0.05,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-    ]).start();
-
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
       debounceRef.current = null;
     }
-
-    if (activeNote) {
-      if (text.trim() === '') {
-        const { deleteNote } = useNoteStore.getState();
-        await deleteNote(activeNote.id);
-      } else {
-        await updateBody(activeNote.id, text);
-      }
-      await loadFeed();
+    if (activeNoteRef.current && textRef.current.length > 0) {
+      await updateBody(activeNoteRef.current.id, textRef.current);
+      loadFeed();
     }
-    resetComposer();
-  }, [activeNote, text, updateBody, loadFeed, resetComposer]);
+  }, [updateBody, loadFeed]);
 
   const handlePinToggle = useCallback(async () => {
     const newPinned = !isPinned;
     setIsPinned(newPinned);
-    if (activeNote) {
-      await togglePin(activeNote.id, newPinned);
+    if (activeNoteRef.current) {
+      await togglePin(activeNoteRef.current.id, newPinned);
     }
-  }, [isPinned, activeNote, togglePin]);
+  }, [isPinned, togglePin]);
 
+  // Open pickers WITHOUT dismissing keyboard — just show modal on top
   const openPriorityPicker = useCallback(() => {
-    isOpeningPickerRef.current = true;
-    Keyboard.dismiss();
-    // Small delay to ensure blur fires first with the guard set
-    setTimeout(() => {
-      priorityRef.current?.expand();
-    }, 100);
+    priorityRef.current?.expand();
   }, []);
 
   const openReminderPicker = useCallback(() => {
-    isOpeningPickerRef.current = true;
-    Keyboard.dismiss();
-    setTimeout(() => {
-      reminderRef.current?.expand();
-    }, 100);
+    reminderRef.current?.expand();
   }, []);
 
   const handlePrioritySelect = useCallback(
     async (p: Priority) => {
       setPriority(p);
-      if (activeNote) {
-        await updatePriority(activeNote.id, p);
+      if (activeNoteRef.current) {
+        await updatePriority(activeNoteRef.current.id, p);
         await loadFeed();
       }
-      // Re-focus the input so user can keep typing
-      setTimeout(() => inputRef.current?.focus(), 100);
     },
-    [activeNote, updatePriority, loadFeed]
+    [updatePriority, loadFeed]
   );
 
   const handleReminderSelect = useCallback(
@@ -230,39 +168,29 @@ export function Composer() {
         setNotificationId(null);
       }
 
-      if (activeNote) {
-        await updateReminder(activeNote.id, isoString);
+      if (activeNoteRef.current) {
+        await updateReminder(activeNoteRef.current.id, isoString);
 
         if (isoString) {
           const nId = await scheduleReminderNotification(
-            activeNote.id,
-            text.substring(0, 50),
+            activeNoteRef.current.id,
+            textRef.current.substring(0, 50),
             new Date(isoString)
           );
           setNotificationId(nId);
         }
         await loadFeed();
       }
-      // Re-focus the input so user can keep typing
-      setTimeout(() => inputRef.current?.focus(), 100);
     },
-    [activeNote, notificationId, text, updateReminder, loadFeed]
+    [notificationId, updateReminder, loadFeed]
   );
 
   const pColor = priorityColor(priority);
-  const showDoneButton = isFocused || text.length > 0;
+  const showActions = text.length > 0 || activeNote !== null;
 
   return (
     <>
-      <Animated.View
-        style={[
-          styles.card,
-          {
-            transform: [{ scale: scaleAnim }],
-            shadowOpacity: shadowAnim,
-          },
-        ]}
-      >
+      <View style={styles.card}>
         <TextInput
           ref={inputRef}
           style={styles.input}
@@ -270,7 +198,6 @@ export function Composer() {
           placeholderTextColor={theme.colors.textSecondary}
           value={text}
           onChangeText={handleChangeText}
-          onFocus={handleFocus}
           onBlur={handleBlur}
           multiline
           textAlignVertical="top"
@@ -301,13 +228,13 @@ export function Composer() {
             </Pressable>
           </View>
 
-          {showDoneButton && (
+          {showActions && (
             <Pressable onPress={handleDone} style={styles.jotButton}>
               <Text style={styles.jotButtonText}>Jot</Text>
             </Pressable>
           )}
         </View>
-      </Animated.View>
+      </View>
 
       <PriorityPicker
         ref={priorityRef}
