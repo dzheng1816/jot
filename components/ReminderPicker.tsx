@@ -19,24 +19,30 @@ export interface ReminderPickerHandle {
 interface Props {
   currentReminder: string | null;
   onSelect: (isoString: string | null) => void;
+  onClose?: () => void;
 }
 
 export const ReminderPicker = forwardRef<ReminderPickerHandle, Props>(
-  ({ currentReminder, onSelect }, ref) => {
+  ({ currentReminder, onSelect, onClose }, ref) => {
     const [visible, setVisible] = useState(false);
 
     useImperativeHandle(ref, () => ({
       expand: () => setVisible(true),
-      close: () => setVisible(false),
+      close: () => { setVisible(false); onClose?.(); },
     }));
+
+    const handleDismiss = () => {
+      setVisible(false);
+      onClose?.();
+    };
 
     const selectAndClose = (date: Date | null) => {
       if (date && date.getTime() <= Date.now()) {
         Alert.alert('Invalid time', 'Please pick a time in the future.');
         return;
       }
-      onSelect(date ? date.toISOString() : null);
       setVisible(false);
+      onSelect(date ? date.toISOString() : null);
     };
 
     const inOneHour = () => {
@@ -81,9 +87,9 @@ export const ReminderPicker = forwardRef<ReminderPickerHandle, Props>(
         visible={visible}
         transparent
         animationType="slide"
-        onRequestClose={() => setVisible(false)}
+        onRequestClose={handleDismiss}
       >
-        <Pressable style={styles.overlay} onPress={() => setVisible(false)}>
+        <Pressable style={styles.overlay} onPress={handleDismiss}>
           <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
             <View style={styles.handle} />
             <Text style={styles.title}>Remind me</Text>

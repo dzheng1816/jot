@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet, Keyboard } from 'react-native';
+import { View, Text, TextInput, Pressable, StyleSheet, Keyboard, Platform } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { theme, priorityColor } from '../constants/theme';
@@ -14,7 +14,6 @@ import {
 
 export function Composer() {
   const [text, setText] = useState('');
-  const [activeNote, setActiveNote] = useState<Note | null>(null);
   const [priority, setPriority] = useState<Priority>('none');
   const [isPinned, setIsPinned] = useState(false);
   const [reminderAt, setReminderAt] = useState<string | null>(null);
@@ -24,8 +23,10 @@ export function Composer() {
   const priorityRef = useRef<PriorityPickerHandle>(null);
   const reminderRef = useRef<ReminderPickerHandle>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const activeNoteRef = useRef<Note | null>(null); // mirror for async callbacks
-  const textRef = useRef(''); // mirror for async callbacks
+  const noteIdRef = useRef<string | null>(null);
+  const textRef = useRef('');
+  const isPickerOpen = useRef(false);
+  const isNavigating = useRef(false);
 
   const {
     createNote,
@@ -40,93 +41,98 @@ export function Composer() {
   const resetComposer = useCallback(() => {
     setText('');
     textRef.current = '';
-    setActiveNote(null);
-    activeNoteRef.current = null;
+    noteIdRef.current = null;
     setPriority('none');
     setIsPinned(false);
     setReminderAt(null);
     setNotificationId(null);
+    isNavigating.current = false;
   }, []);
 
-  // "Jot" (done) button — save, dismiss, reset
+  // Ensure a note record exists, return its ID
+  const ensureNote = useCallback(async (currentText: string): Promise<string> => {
+    if (noteIdRef.current) return noteIdRef.current;
+    const note = await createNote(currentText);
+    noteIdRef.current = note.id;
+    loadFeed();
+    return note.id;
+  }, [createNote, loadFeed]);
+
+  // "Jot" (done) button
   const handleDone = useCallback(async () => {
     Keyboard.dismiss();
-
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
       debounceRef.current = null;
     }
 
-    const note = activeNoteRef.current;
-    const currentText = textRef.current;
+    const id = noteIdRef.current;
+    const currentText = textRef.current.trim();
 
-    if (note) {
-      if (currentText.trim() === '') {
-        await deleteNote(note.id);
+    if (id) {
+      if (currentText === '') {
+        await deleteNote(id);
       } else {
-        await updateBody(note.id, currentText);
+        await updateBody(id, textRef.current);
       }
       await loadFeed();
     }
-
     resetComposer();
   }, [updateBody, deleteNote, loadFeed, resetComposer]);
 
   const handleChangeText = useCallback(
     async (value: string) => {
+      // Ignore if we're navigating away
+      if (isNavigating.current) return;
+
       setText(value);
       textRef.current = value;
 
-      // First character typed — create a new note
-      if (!activeNoteRef.current && value.length > 0) {
-        const note = await createNote(value);
-        setActiveNote(note);
-        activeNoteRef.current = note;
-        loadFeed();
+      if (value.length === 0) return;
 
-        // If pasted text is already >100 chars, expand immediately
-        if (value.length > 100) {
-          await updateBody(note.id, value);
-          await loadFeed();
+      // Ensure note exists
+      const id = await ensureNote(value);
+
+      // Auto-expand to full screen at 100 characters
+      if (value.length > 100) {
+        isNavigating.current = true;
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+        // Save the text before navigating
+        await updateBody(id, value);
+        await loadFeed();
+        // Navigate first, THEN reset — so the note detail picks up the saved text
+        router.push(`/note/${id}?autoFocus=true`);
+        // Delay reset so navigation completes
+        setTimeout(() => {
           resetComposer();
-          router.push(`/note/${note.id}?autoFocus=true`);
-        }
+        }, 300);
         return;
       }
 
-      if (activeNoteRef.current) {
-        // Auto-expand to full screen at 100 characters
-        if (value.length > 100) {
-          if (debounceRef.current) clearTimeout(debounceRef.current);
-          const noteId = activeNoteRef.current.id;
-          await updateBody(noteId, value);
-          await loadFeed();
-          resetComposer();
-          router.push(`/note/${noteId}?autoFocus=true`);
-          return;
+      // Debounced save
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(async () => {
+        if (noteIdRef.current) {
+          await updateBody(noteIdRef.current, textRef.current);
+          loadFeed();
         }
-
-        // Debounced save
-        if (debounceRef.current) clearTimeout(debounceRef.current);
-        debounceRef.current = setTimeout(async () => {
-          if (activeNoteRef.current) {
-            await updateBody(activeNoteRef.current.id, textRef.current);
-            loadFeed();
-          }
-        }, 300);
-      }
+      }, 300);
     },
-    [createNote, updateBody, loadFeed, resetComposer]
+    [ensureNote, updateBody, loadFeed, resetComposer]
   );
 
-  // On blur: just save, don't reset (user might tap priority/reminder)
+  // On blur: save but DON'T reset if picker is open
   const handleBlur = useCallback(async () => {
+    // Don't do anything if a picker modal is open — user is just switching focus
+    if (isPickerOpen.current) return;
+    if (isNavigating.current) return;
+
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
       debounceRef.current = null;
     }
-    if (activeNoteRef.current && textRef.current.length > 0) {
-      await updateBody(activeNoteRef.current.id, textRef.current);
+    if (noteIdRef.current && textRef.current.length > 0) {
+      await updateBody(noteIdRef.current, textRef.current);
       loadFeed();
     }
   }, [updateBody, loadFeed]);
@@ -134,33 +140,38 @@ export function Composer() {
   const handlePinToggle = useCallback(async () => {
     const newPinned = !isPinned;
     setIsPinned(newPinned);
-    if (activeNoteRef.current) {
-      await togglePin(activeNoteRef.current.id, newPinned);
+    if (noteIdRef.current) {
+      await togglePin(noteIdRef.current, newPinned);
     }
   }, [isPinned, togglePin]);
 
-  // Open pickers WITHOUT dismissing keyboard — just show modal on top
   const openPriorityPicker = useCallback(() => {
+    isPickerOpen.current = true;
     priorityRef.current?.expand();
   }, []);
 
   const openReminderPicker = useCallback(() => {
+    isPickerOpen.current = true;
     reminderRef.current?.expand();
   }, []);
 
   const handlePrioritySelect = useCallback(
     async (p: Priority) => {
+      isPickerOpen.current = false;
       setPriority(p);
-      if (activeNoteRef.current) {
-        await updatePriority(activeNoteRef.current.id, p);
+      if (noteIdRef.current) {
+        await updatePriority(noteIdRef.current, p);
         await loadFeed();
       }
+      // Re-focus input after picker closes
+      setTimeout(() => inputRef.current?.focus(), 100);
     },
     [updatePriority, loadFeed]
   );
 
   const handleReminderSelect = useCallback(
     async (isoString: string | null) => {
+      isPickerOpen.current = false;
       setReminderAt(isoString);
 
       if (notificationId) {
@@ -168,12 +179,12 @@ export function Composer() {
         setNotificationId(null);
       }
 
-      if (activeNoteRef.current) {
-        await updateReminder(activeNoteRef.current.id, isoString);
+      if (noteIdRef.current) {
+        await updateReminder(noteIdRef.current, isoString);
 
         if (isoString) {
           const nId = await scheduleReminderNotification(
-            activeNoteRef.current.id,
+            noteIdRef.current,
             textRef.current.substring(0, 50),
             new Date(isoString)
           );
@@ -181,12 +192,25 @@ export function Composer() {
         }
         await loadFeed();
       }
+      // Re-focus input after picker closes
+      setTimeout(() => inputRef.current?.focus(), 100);
     },
     [notificationId, updateReminder, loadFeed]
   );
 
+  // When picker modal closes without selection (tap overlay)
+  const handlePriorityPickerClose = useCallback(() => {
+    isPickerOpen.current = false;
+    setTimeout(() => inputRef.current?.focus(), 100);
+  }, []);
+
+  const handleReminderPickerClose = useCallback(() => {
+    isPickerOpen.current = false;
+    setTimeout(() => inputRef.current?.focus(), 100);
+  }, []);
+
   const pColor = priorityColor(priority);
-  const showActions = text.length > 0 || activeNote !== null;
+  const showJotButton = text.length > 0;
 
   return (
     <>
@@ -228,7 +252,7 @@ export function Composer() {
             </Pressable>
           </View>
 
-          {showActions && (
+          {showJotButton && (
             <Pressable onPress={handleDone} style={styles.jotButton}>
               <Text style={styles.jotButtonText}>Jot</Text>
             </Pressable>
@@ -240,11 +264,13 @@ export function Composer() {
         ref={priorityRef}
         currentPriority={priority}
         onSelect={handlePrioritySelect}
+        onClose={handlePriorityPickerClose}
       />
       <ReminderPicker
         ref={reminderRef}
         currentReminder={reminderAt}
         onSelect={handleReminderSelect}
+        onClose={handleReminderPickerClose}
       />
     </>
   );

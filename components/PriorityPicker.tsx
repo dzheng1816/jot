@@ -18,6 +18,7 @@ export interface PriorityPickerHandle {
 interface Props {
   currentPriority: Priority;
   onSelect: (priority: Priority) => void;
+  onClose?: () => void;
 }
 
 const options: { label: string; value: Priority }[] = [
@@ -28,17 +29,22 @@ const options: { label: string; value: Priority }[] = [
 ];
 
 export const PriorityPicker = forwardRef<PriorityPickerHandle, Props>(
-  ({ currentPriority, onSelect }, ref) => {
+  ({ currentPriority, onSelect, onClose }, ref) => {
     const [visible, setVisible] = useState(false);
 
     useImperativeHandle(ref, () => ({
       expand: () => setVisible(true),
-      close: () => setVisible(false),
+      close: () => { setVisible(false); onClose?.(); },
     }));
 
     const handleSelect = (value: Priority) => {
-      onSelect(value);
       setVisible(false);
+      onSelect(value);
+    };
+
+    const handleDismiss = () => {
+      setVisible(false);
+      onClose?.();
     };
 
     return (
@@ -46,9 +52,9 @@ export const PriorityPicker = forwardRef<PriorityPickerHandle, Props>(
         visible={visible}
         transparent
         animationType="slide"
-        onRequestClose={() => setVisible(false)}
+        onRequestClose={handleDismiss}
       >
-        <Pressable style={styles.overlay} onPress={() => setVisible(false)}>
+        <Pressable style={styles.overlay} onPress={handleDismiss}>
           <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
             <View style={styles.handle} />
             <Text style={styles.title}>Priority</Text>
