@@ -53,15 +53,7 @@ export function NoteCard({ note, index = 0, onOpenPriority, onOpenReminder }: Pr
   };
 
   const handleDelete = () => {
-    swipeableRef.current?.close();
-    Alert.alert('Delete this note?', undefined, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => deleteNote(note.id),
-      },
-    ]);
+    deleteNote(note.id);
   };
 
   const handleTogglePin = async () => {
@@ -69,20 +61,20 @@ export function NoteCard({ note, index = 0, onOpenPriority, onOpenReminder }: Pr
   };
 
   const renderRightActions = (
-    _progress: Animated.AnimatedInterpolation<number>,
+    progress: Animated.AnimatedInterpolation<number>,
     dragX: Animated.AnimatedInterpolation<number>
   ) => {
-    const scale = dragX.interpolate({
-      inputRange: [-80, 0],
-      outputRange: [1, 0.5],
+    const opacity = dragX.interpolate({
+      inputRange: [-200, -100, 0],
+      outputRange: [1, 0.8, 0],
       extrapolate: 'clamp',
     });
     return (
-      <Pressable onPress={handleDelete} style={styles.deleteAction}>
-        <Animated.Text style={[styles.deleteText, { transform: [{ scale }] }]}>
+      <View style={styles.deleteAction}>
+        <Animated.Text style={[styles.deleteText, { opacity }]}>
           Delete
         </Animated.Text>
-      </Pressable>
+      </View>
     );
   };
 
@@ -99,7 +91,11 @@ export function NoteCard({ note, index = 0, onOpenPriority, onOpenReminder }: Pr
         ref={swipeableRef}
         renderRightActions={renderRightActions}
         overshootRight={false}
-        friction={2}
+        friction={1.5}
+        rightThreshold={200}
+        onSwipeableOpen={(direction) => {
+          if (direction === 'right') handleDelete();
+        }}
       >
         <Pressable
           onPress={handlePress}
@@ -261,8 +257,12 @@ const styles = StyleSheet.create({
   deleteAction: {
     backgroundColor: theme.colors.danger,
     justifyContent: 'center',
-    alignItems: 'center',
-    width: 80,
+    alignItems: 'flex-end',
+    paddingRight: 24,
+    flex: 1,
+    borderRadius: theme.radius.composer,
+    marginHorizontal: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
   },
   deleteText: {
     color: '#fff',
