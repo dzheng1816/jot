@@ -5,7 +5,6 @@ import {
   TextInput,
   Pressable,
   StyleSheet,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -14,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { theme, priorityColor } from '../../constants/theme';
+import { confirmAction } from '../../utils/confirm';
 import { Note, Priority } from '../../types/note';
 import { useNoteStore } from '../../store/useNoteStore';
 import { getNoteById } from '../../db/queries';
@@ -155,20 +155,13 @@ export default function NoteDetailScreen() {
 
   const handleDelete = useCallback(() => {
     if (!note) return;
-    Alert.alert('Delete this note?', undefined, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          if (notificationIdRef.current) {
-            await cancelNotification(notificationIdRef.current);
-          }
-          await deleteNote(note.id);
-          goBack();
-        },
-      },
-    ]);
+    confirmAction('Delete this note?', undefined, async () => {
+      if (notificationIdRef.current) {
+        await cancelNotification(notificationIdRef.current);
+      }
+      await deleteNote(note.id);
+      goBack();
+    }, 'Delete');
   }, [note, deleteNote]);
 
   if (!note) {

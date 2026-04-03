@@ -6,7 +6,6 @@ import {
   StyleSheet,
   Modal,
   Platform,
-  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../constants/theme';
@@ -38,7 +37,12 @@ export const ReminderPicker = forwardRef<ReminderPickerHandle, Props>(
 
     const selectAndClose = (date: Date | null) => {
       if (date && date.getTime() <= Date.now()) {
-        Alert.alert('Invalid time', 'Please pick a time in the future.');
+        if (Platform.OS === 'web') {
+          window.alert('Please pick a time in the future.');
+        } else {
+          const { Alert: NativeAlert } = require('react-native');
+          NativeAlert.alert('Invalid time', 'Please pick a time in the future.');
+        }
         return;
       }
       setVisible(false);

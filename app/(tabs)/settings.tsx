@@ -5,13 +5,13 @@ import {
   Switch,
   Pressable,
   StyleSheet,
-  Alert,
   Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../constants/theme';
+import { confirmAction } from '../../utils/confirm';
 import { useNoteStore } from '../../store/useNoteStore';
 import {
   checkPermissions,
@@ -32,17 +32,10 @@ export default function SettingsScreen() {
   }, []);
 
   const handleDeleteAll = () => {
-    Alert.alert("Delete all notes?", "This can't be undone.", [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          await cancelAllNotifications();
-          await deleteAllNotes();
-        },
-      },
-    ]);
+    confirmAction("Delete all notes?", "This can't be undone.", async () => {
+      await cancelAllNotifications();
+      await deleteAllNotes();
+    }, 'Delete');
   };
 
   const version = Constants.expoConfig?.version ?? '1.0.0';

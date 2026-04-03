@@ -1,5 +1,5 @@
 import React, { useEffect, useCallback, useRef, useState } from 'react';
-import { View, Text, SectionList, StyleSheet, Pressable, Keyboard, Alert } from 'react-native';
+import { View, Text, SectionList, StyleSheet, Pressable, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, router } from 'expo-router';
@@ -17,6 +17,7 @@ import {
   scheduleReminderNotification,
 } from '../../utils/notifications';
 import { getNoteById } from '../../db/queries';
+import { confirmAction } from '../../utils/confirm';
 
 export default function HomeScreen() {
   const pinnedNotes = useNoteStore((s) => s.pinnedNotes);
@@ -191,21 +192,15 @@ export default function HomeScreen() {
                       onPress={() => {
                         const count = selectedIds.size;
                         const ids = Array.from(selectedIds);
-                        Alert.alert(
+                        confirmAction(
                           `Delete ${count} note${count > 1 ? 's' : ''}?`,
                           'This cannot be undone.',
-                          [
-                            { text: 'Cancel', style: 'cancel' },
-                            {
-                              text: 'Delete',
-                              style: 'destructive',
-                              onPress: async () => {
-                                await permanentlyDeleteNotes(ids);
-                                setSelectedIds(new Set());
-                                setSelectMode(false);
-                              },
-                            },
-                          ]
+                          async () => {
+                            await permanentlyDeleteNotes(ids);
+                            setSelectedIds(new Set());
+                            setSelectMode(false);
+                          },
+                          'Delete'
                         );
                       }}
                       style={styles.archiveBtn}
@@ -218,21 +213,15 @@ export default function HomeScreen() {
                   )}
                   <Pressable
                     onPress={() => {
-                      Alert.alert(
+                      confirmAction(
                         'Delete all archived notes?',
                         'This cannot be undone.',
-                        [
-                          { text: 'Cancel', style: 'cancel' },
-                          {
-                            text: 'Delete All',
-                            style: 'destructive',
-                            onPress: async () => {
-                              await deleteAllArchivedNotes();
-                              setSelectMode(false);
-                              setSelectedIds(new Set());
-                            },
-                          },
-                        ]
+                        async () => {
+                          await deleteAllArchivedNotes();
+                          setSelectMode(false);
+                          setSelectedIds(new Set());
+                        },
+                        'Delete All'
                       );
                     }}
                     style={styles.archiveBtn}

@@ -5,11 +5,11 @@ import {
   StyleSheet,
   Pressable,
   Animated,
-  Alert,
 } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { confirmAction } from '../utils/confirm';
 import { Note } from '../types/note';
 import { PriorityDot } from './PriorityDot';
 import { theme, priorityColor } from '../constants/theme';
@@ -163,10 +163,7 @@ export function NoteCard({ note, index = 0, onOpenPriority, onOpenReminder, isAr
                 </Pressable>
                 <Pressable
                   onPress={() => {
-                    Alert.alert('Delete permanently?', 'This cannot be undone.', [
-                      { text: 'Cancel', style: 'cancel' },
-                      { text: 'Delete', style: 'destructive', onPress: handleDelete },
-                    ]);
+                    confirmAction('Delete permanently?', 'This cannot be undone.', handleDelete, 'Delete');
                   }}
                   hitSlop={6}
                   style={styles.actionChip}
