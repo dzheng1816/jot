@@ -9,6 +9,8 @@ import {
   Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../../constants/theme';
 import { useNoteStore } from '../../store/useNoteStore';
 import {
@@ -47,7 +49,13 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <Text style={styles.title}>Settings</Text>
+      <View style={styles.header}>
+        <Pressable onPress={() => router.back()} hitSlop={12}>
+          <Ionicons name="arrow-back" size={24} color={theme.colors.textPrimary} />
+        </Pressable>
+        <Text style={styles.title}>Settings</Text>
+        <View style={{ width: 24 }} />
+      </View>
 
       <View style={styles.section}>
         <View style={styles.row}>
@@ -99,11 +107,17 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.background,
   },
-  title: {
-    fontSize: theme.typography.title.fontSize,
-    fontWeight: theme.typography.title.fontWeight,
-    color: theme.colors.textPrimary,
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: theme.spacing.xl,
+    paddingVertical: theme.spacing.sm,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: theme.colors.textPrimary,
     paddingVertical: theme.spacing.md,
   },
   section: {

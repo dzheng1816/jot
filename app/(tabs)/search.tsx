@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { theme } from '../../constants/theme';
 import { Note } from '../../types/note';
 import { useNoteStore } from '../../store/useNoteStore';
@@ -43,6 +44,11 @@ export default function SearchScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      <View style={styles.header}>
+        <Pressable onPress={() => router.back()} hitSlop={12}>
+          <Ionicons name="arrow-back" size={24} color={theme.colors.textPrimary} />
+        </Pressable>
+      </View>
       <View style={styles.searchBar}>
         <Ionicons
           name="search"
@@ -86,6 +92,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
+  },
+  header: {
+    paddingHorizontal: theme.spacing.xl,
+    paddingVertical: theme.spacing.sm,
   },
   searchBar: {
     flexDirection: 'row',

@@ -15,7 +15,10 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.jot.app"
+      "bundleIdentifier": "com.jot.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -30,6 +33,12 @@
       "expo-notifications",
       "@react-native-community/datetimepicker",
       "expo-sqlite"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "d1963109-10e9-4a13-9cf0-eb843951836c"
+      }
+    }
   }
 }
