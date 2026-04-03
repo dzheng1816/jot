@@ -1,5 +1,6 @@
 import React, { useEffect, useCallback, useRef, useState } from 'react';
-import { View, Text, SectionList, StyleSheet } from 'react-native';
+import { View, Text, SectionList, StyleSheet, Pressable } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { theme } from '../../constants/theme';
@@ -21,6 +22,8 @@ import { getNoteById } from '../../db/queries';
 export default function HomeScreen() {
   const pinnedNotes = useNoteStore((s) => s.pinnedNotes);
   const recentNotes = useNoteStore((s) => s.recentNotes);
+  const [pinnedCollapsed, setPinnedCollapsed] = useState(false);
+  const [thoughtsCollapsed, setThoughtsCollapsed] = useState(false);
   const loadFeed = useNoteStore((s) => s.loadFeed);
   const updatePriority = useNoteStore((s) => s.updatePriority);
   const updateReminder = useNoteStore((s) => s.updateReminder);
@@ -100,10 +103,10 @@ export default function HomeScreen() {
 
   const sections = [
     ...(pinnedNotes.length > 0
-      ? [{ title: 'Pinned', data: pinnedNotes }]
+      ? [{ title: 'Pinned', data: pinnedCollapsed ? [] : pinnedNotes, count: pinnedNotes.length }]
       : []),
     ...(recentNotes.length > 0
-      ? [{ title: 'Recent', data: recentNotes }]
+      ? [{ title: 'Thoughts', data: thoughtsCollapsed ? [] : recentNotes, count: recentNotes.length }]
       : []),
   ];
 
@@ -122,9 +125,26 @@ export default function HomeScreen() {
             <PriorityFilter />
           </>
         }
-        renderSectionHeader={({ section }) => (
-          <Text style={styles.sectionHeader}>{section.title}</Text>
-        )}
+        renderSectionHeader={({ section }) => {
+          const isCollapsed =
+            section.title === 'Pinned' ? pinnedCollapsed : thoughtsCollapsed;
+          const toggle =
+            section.title === 'Pinned'
+              ? () => setPinnedCollapsed((p) => !p)
+              : () => setThoughtsCollapsed((p) => !p);
+          return (
+            <Pressable onPress={toggle} style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionHeader}>
+                {section.title} ({(section as any).count})
+              </Text>
+              <Ionicons
+                name={isCollapsed ? 'chevron-forward' : 'chevron-down'}
+                size={14}
+                color={theme.colors.textSecondary}
+              />
+            </Pressable>
+          );
+        }}
         renderItem={({ item, index }) => (
           <NoteCard
             note={item}
@@ -167,15 +187,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.xl,
     paddingVertical: theme.spacing.sm,
   },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: theme.spacing.xl,
+    paddingTop: theme.spacing.md,
+    paddingBottom: theme.spacing.xs,
+  },
   sectionHeader: {
     fontSize: theme.typography.label.fontSize,
     fontWeight: '600',
     color: theme.colors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    paddingHorizontal: theme.spacing.xl,
-    paddingTop: theme.spacing.md,
-    paddingBottom: theme.spacing.xs,
   },
   listContent: {
     paddingBottom: 100,
