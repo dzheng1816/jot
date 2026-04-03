@@ -125,7 +125,7 @@ export function Composer() {
                 color={isPinned ? theme.colors.accent : theme.colors.textSecondary}
               />
             </Pressable>
-            <Pressable onPress={() => priorityRef.current?.expand()} hitSlop={8}>
+            <Pressable onPress={() => { Keyboard.dismiss(); setTimeout(() => priorityRef.current?.expand(), 150); }} hitSlop={8}>
               <View
                 style={[
                   styles.priorityButton,
@@ -133,7 +133,7 @@ export function Composer() {
                 ]}
               />
             </Pressable>
-            <Pressable onPress={() => reminderRef.current?.expand()} hitSlop={8}>
+            <Pressable onPress={() => { Keyboard.dismiss(); setTimeout(() => reminderRef.current?.expand(), 150); }} hitSlop={8}>
               <Ionicons
                 name={reminderAt ? 'alarm' : 'alarm-outline'}
                 size={20}
@@ -182,8 +182,9 @@ const styles = StyleSheet.create({
   input: {
     fontSize: theme.typography.body.fontSize,
     color: theme.colors.textPrimary,
-    minHeight: 40,
-    maxHeight: 120,
+    minHeight: 160,
+    maxHeight: 280,
+    textAlignVertical: 'top',
   },
   actionsRow: {
     flexDirection: 'row',

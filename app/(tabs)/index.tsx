@@ -1,8 +1,8 @@
 import React, { useEffect, useCallback, useRef, useState } from 'react';
-import { View, Text, SectionList, StyleSheet, Pressable } from 'react-native';
+import { View, Text, SectionList, StyleSheet, Pressable, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, router } from 'expo-router';
 import { theme } from '../../constants/theme';
 import { useNoteStore } from '../../store/useNoteStore';
 import { Priority } from '../../types/note';
@@ -15,7 +15,6 @@ import { ReminderPicker, ReminderPickerHandle } from '../../components/ReminderP
 import { EmptyState } from '../../components/EmptyState';
 import {
   scheduleReminderNotification,
-  cancelNotification,
 } from '../../utils/notifications';
 import { getNoteById } from '../../db/queries';
 
@@ -28,7 +27,6 @@ export default function HomeScreen() {
   const updatePriority = useNoteStore((s) => s.updatePriority);
   const updateReminder = useNoteStore((s) => s.updateReminder);
 
-  // Track which note the inline pickers are targeting
   const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
   const [activeNotePriority, setActiveNotePriority] = useState<Priority>('none');
   const [activeNoteReminder, setActiveNoteReminder] = useState<string | null>(null);
@@ -47,11 +45,12 @@ export default function HomeScreen() {
 
   const handleOpenPriority = useCallback(
     async (noteId: string) => {
+      Keyboard.dismiss();
       const note = await getNoteById(noteId);
       if (note) {
         setActiveNoteId(noteId);
         setActiveNotePriority(note.priority);
-        priorityPickerRef.current?.expand();
+        setTimeout(() => priorityPickerRef.current?.expand(), 100);
       }
     },
     []
@@ -59,11 +58,12 @@ export default function HomeScreen() {
 
   const handleOpenReminder = useCallback(
     async (noteId: string) => {
+      Keyboard.dismiss();
       const note = await getNoteById(noteId);
       if (note) {
         setActiveNoteId(noteId);
         setActiveNoteReminder(note.reminder_at);
-        reminderPickerRef.current?.expand();
+        setTimeout(() => reminderPickerRef.current?.expand(), 100);
       }
     },
     []
@@ -81,15 +81,7 @@ export default function HomeScreen() {
     async (isoString: string | null) => {
       if (!activeNoteId) return;
       const note = await getNoteById(activeNoteId);
-
-      // Cancel old reminder notification if any
-      if (note?.reminder_at) {
-        // We don't store notification IDs per-note in this flow,
-        // but updateReminder handles the DB side
-      }
-
       await updateReminder(activeNoteId, isoString);
-
       if (isoString && note) {
         await scheduleReminderNotification(
           activeNoteId,
@@ -112,8 +104,16 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Header: logo left, settings right */}
       <View style={styles.header}>
         <JotLogo size={52} />
+        <Pressable onPress={() => router.push('/settings')} hitSlop={12}>
+          <Ionicons
+            name="settings-outline"
+            size={24}
+            color={theme.colors.textSecondary}
+          />
+        </Pressable>
       </View>
 
       <SectionList
@@ -158,9 +158,9 @@ export default function HomeScreen() {
         }
         stickySectionHeadersEnabled={false}
         contentContainerStyle={styles.listContent}
+        keyboardShouldPersistTaps="handled"
       />
 
-      {/* Shared bottom sheet pickers for inline card actions */}
       <PriorityPicker
         ref={priorityPickerRef}
         currentPriority={activeNotePriority}
