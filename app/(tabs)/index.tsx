@@ -147,10 +147,9 @@ export default function HomeScreen() {
     [activeNoteId, updateReminder]
   );
 
-  // Build flat data for the list
-  const feedData = isArchive
-    ? archivedNotes
-    : [...pinnedNotes, ...recentNotes];
+  const hasPinned = !isArchive && pinnedNotes.length > 0;
+  const hasThoughts = !isArchive && recentNotes.length > 0;
+  const isEmpty = !isArchive && pinnedNotes.length === 0 && recentNotes.length === 0;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -253,32 +252,102 @@ export default function HomeScreen() {
         </>
       )}
 
-      {/* Scrollable notes list — only this scrolls */}
-      <FlatList
-        ref={flatListRef}
-        data={feedData}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item, index }) => (
-          <NoteCard
-            note={item}
-            index={index}
-            onOpenPriority={isArchive ? undefined : handleOpenPriority}
-            onOpenReminder={isArchive ? undefined : handleOpenReminder}
-            isArchived={isArchive}
-            selectMode={isArchive && selectMode}
-            isSelected={selectedIds.has(item.id)}
-            onToggleSelect={handleToggleSelect}
-            isNew={item.id === newNoteId}
+      {/* Notes area — fixed headers, scrollable content */}
+      <View style={styles.notesList}>
+        {isEmpty && (
+          <EmptyState message="No notes yet. Start typing below!" />
+        )}
+
+        {isArchive && (
+          <FlatList
+            data={archivedNotes}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item, index }) => (
+              <NoteCard
+                note={item}
+                index={index}
+                isArchived
+                selectMode={selectMode}
+                isSelected={selectedIds.has(item.id)}
+                onToggleSelect={handleToggleSelect}
+                isNew={item.id === newNoteId}
+              />
+            )}
+            ListEmptyComponent={<EmptyState message="No deleted notes." />}
+            extraData={[selectMode, selectedIds.size, newNoteId]}
+            contentContainerStyle={styles.listContent}
+            keyboardShouldPersistTaps="handled"
+            style={styles.sectionList}
           />
         )}
-        ListEmptyComponent={
-          <EmptyState message={isArchive ? "No deleted notes." : "No notes yet. Start typing below!"} />
-        }
-        extraData={[selectMode, selectedIds.size, isArchive, newNoteId]}
-        contentContainerStyle={styles.listContent}
-        keyboardShouldPersistTaps="handled"
-        style={styles.notesList}
-      />
+
+        {/* Pinned section */}
+        {hasPinned && (
+          <>
+            <Pressable onPress={() => setPinnedCollapsed((p) => !p)} style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionHeader}>Pinned ({pinnedNotes.length})</Text>
+              <Ionicons
+                name={pinnedCollapsed ? 'chevron-forward' : 'chevron-down'}
+                size={14}
+                color={theme.colors.textSecondary}
+              />
+            </Pressable>
+            {!pinnedCollapsed && (
+              <FlatList
+                data={pinnedNotes}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item, index }) => (
+                  <NoteCard
+                    note={item}
+                    index={index}
+                    onOpenPriority={handleOpenPriority}
+                    onOpenReminder={handleOpenReminder}
+                    isNew={item.id === newNoteId}
+                  />
+                )}
+                extraData={[newNoteId]}
+                contentContainerStyle={styles.listContent}
+                keyboardShouldPersistTaps="handled"
+                style={styles.sectionList}
+              />
+            )}
+          </>
+        )}
+
+        {/* Thoughts section */}
+        {hasThoughts && (
+          <>
+            <Pressable onPress={() => setThoughtsCollapsed((p) => !p)} style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionHeader}>Thoughts ({recentNotes.length})</Text>
+              <Ionicons
+                name={thoughtsCollapsed ? 'chevron-forward' : 'chevron-down'}
+                size={14}
+                color={theme.colors.textSecondary}
+              />
+            </Pressable>
+            {!thoughtsCollapsed && (
+              <FlatList
+                ref={flatListRef}
+                data={recentNotes}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item, index }) => (
+                  <NoteCard
+                    note={item}
+                    index={index}
+                    onOpenPriority={handleOpenPriority}
+                    onOpenReminder={handleOpenReminder}
+                    isNew={item.id === newNoteId}
+                  />
+                )}
+                extraData={[newNoteId]}
+                contentContainerStyle={styles.listContent}
+                keyboardShouldPersistTaps="handled"
+                style={styles.sectionList}
+              />
+            )}
+          </>
+        )}
+      </View>
 
       {/* Dark overlay when composer is focused */}
       <Animated.View
@@ -376,6 +445,9 @@ const styles = StyleSheet.create({
     zIndex: 2,
   },
   notesList: {
+    flex: 1,
+  },
+  sectionList: {
     flex: 1,
   },
   listContent: {
