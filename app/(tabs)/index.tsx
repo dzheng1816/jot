@@ -1,5 +1,5 @@
 import React, { useEffect, useCallback, useRef, useState } from 'react';
-import { View, Text, SectionList, StyleSheet, Pressable, Keyboard, Animated } from 'react-native';
+import { View, Text, FlatList, StyleSheet, Pressable, Keyboard, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, router } from 'expo-router';
@@ -39,7 +39,7 @@ export default function HomeScreen() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [composerFocused, setComposerFocused] = useState(false);
   const overlayAnim = useRef(new Animated.Value(0)).current;
-  const sectionListRef = useRef<SectionList>(null);
+  const flatListRef = useRef<FlatList>(null);
 
   const handleComposerFocusChange = useCallback((focused: boolean) => {
     setComposerFocused(focused);
@@ -78,20 +78,15 @@ export default function HomeScreen() {
 
   // Scroll to bottom when a new note is created, then clear the flag
   useEffect(() => {
-    if (newNoteId && sections.length > 0) {
-      const lastSection = sections[sections.length - 1];
-      if (lastSection && lastSection.data.length > 0) {
+    if (newNoteId) {
+      const allNotes = [...pinnedNotes, ...recentNotes];
+      if (allNotes.length > 0) {
         setTimeout(() => {
           try {
-            sectionListRef.current?.scrollToLocation({
-              sectionIndex: sections.length - 1,
-              itemIndex: lastSection.data.length - 1,
-              animated: true,
-            });
+            flatListRef.current?.scrollToEnd({ animated: true });
           } catch {}
         }, 100);
       }
-      // Clear after animation completes
       setTimeout(() => clearNewNoteId(), 600);
     }
   }, [newNoteId, recentNotes.length, pinnedNotes.length]);
@@ -152,22 +147,14 @@ export default function HomeScreen() {
     [activeNoteId, updateReminder]
   );
 
-  const sections = isArchive
-    ? archivedNotes.length > 0
-      ? [{ title: 'Archive', data: archivedNotes, count: archivedNotes.length }]
-      : []
-    : [
-        ...(pinnedNotes.length > 0
-          ? [{ title: 'Pinned', data: pinnedCollapsed ? [] : pinnedNotes, count: pinnedNotes.length }]
-          : []),
-        ...(recentNotes.length > 0
-          ? [{ title: 'Thoughts', data: thoughtsCollapsed ? [] : recentNotes, count: recentNotes.length }]
-          : []),
-      ];
+  // Build flat data for the list
+  const feedData = isArchive
+    ? archivedNotes
+    : [...pinnedNotes, ...recentNotes];
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Header: logo left, settings right */}
+      {/* Fixed header */}
       <View style={styles.header}>
         {isArchive ? (
           <Pressable onPress={() => setPriorityFilter('all')} hitSlop={12} style={styles.backRow}>
@@ -186,113 +173,91 @@ export default function HomeScreen() {
         </Pressable>
       </View>
 
-      <SectionList
-        ref={sectionListRef}
-        sections={sections}
-        keyExtractor={(item) => item.id}
-        ListHeaderComponent={
-          <>
-            <PriorityFilter />
-            {isArchive && archivedNotes.length > 0 && (
-              <>
-                <View style={styles.sectionHeaderRow}>
-                  <Text style={styles.sectionHeader}>
-                    Archive ({archivedNotes.length})
-                  </Text>
-                </View>
-                <View style={styles.archiveActions}>
-                  <Pressable
-                    onPress={() => {
-                      if (selectMode) {
-                        setSelectMode(false);
-                        setSelectedIds(new Set());
-                      } else {
-                        setSelectMode(true);
-                      }
-                    }}
-                    style={[styles.archiveBtn, selectMode && styles.archiveBtnActive]}
-                  >
-                    <Ionicons
-                      name={selectMode ? 'close-outline' : 'checkmark-circle-outline'}
-                      size={15}
-                      color={selectMode ? theme.colors.accent : theme.colors.textSecondary}
-                    />
-                    <Text style={[styles.archiveBtnText, selectMode && { color: theme.colors.accent }]}>
-                      {selectMode ? 'Cancel' : 'Select'}
-                    </Text>
-                  </Pressable>
-                  {selectMode && selectedIds.size > 0 && (
-                    <Pressable
-                      onPress={() => {
-                        const count = selectedIds.size;
-                        const ids = Array.from(selectedIds);
-                        confirmAction(
-                          `Delete ${count} note${count > 1 ? 's' : ''}?`,
-                          'This cannot be undone.',
-                          async () => {
-                            await permanentlyDeleteNotes(ids);
-                            setSelectedIds(new Set());
-                            setSelectMode(false);
-                          },
-                          'Delete'
-                        );
-                      }}
-                      style={styles.archiveBtn}
-                    >
-                      <Ionicons name="trash-outline" size={15} color={theme.colors.danger} />
-                      <Text style={[styles.archiveBtnText, { color: theme.colors.danger }]}>
-                        Delete ({selectedIds.size})
-                      </Text>
-                    </Pressable>
-                  )}
-                  <Pressable
-                    onPress={() => {
-                      confirmAction(
-                        'Delete all archived notes?',
-                        'This cannot be undone.',
-                        async () => {
-                          await deleteAllArchivedNotes();
-                          setSelectMode(false);
-                          setSelectedIds(new Set());
-                        },
-                        'Delete All'
-                      );
-                    }}
-                    style={styles.archiveBtn}
-                  >
-                    <Ionicons name="trash-bin-outline" size={15} color={theme.colors.danger} />
-                    <Text style={[styles.archiveBtnText, { color: theme.colors.danger }]}>
-                      Delete All
-                    </Text>
-                  </Pressable>
-                </View>
-              </>
-            )}
-          </>
-        }
-        renderSectionHeader={({ section }) => {
-          if (section.title === 'Archive') {
-            return null;
-          }
-          const isCollapsed =
-            section.title === 'Pinned' ? pinnedCollapsed : thoughtsCollapsed;
-          const toggle =
-            section.title === 'Pinned'
-              ? () => setPinnedCollapsed((p) => !p)
-              : () => setThoughtsCollapsed((p) => !p);
-          return (
-            <Pressable onPress={toggle} style={styles.sectionHeaderRow}>
-              <Text style={styles.sectionHeader}>
-                {section.title} ({(section as any).count})
-              </Text>
+      {/* Fixed filter bar */}
+      <PriorityFilter />
+
+      {/* Archive toolbar (fixed, only in archive mode) */}
+      {isArchive && archivedNotes.length > 0 && (
+        <>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionHeader}>
+              Archive ({archivedNotes.length})
+            </Text>
+          </View>
+          <View style={styles.archiveActions}>
+            <Pressable
+              onPress={() => {
+                if (selectMode) {
+                  setSelectMode(false);
+                  setSelectedIds(new Set());
+                } else {
+                  setSelectMode(true);
+                }
+              }}
+              style={[styles.archiveBtn, selectMode && styles.archiveBtnActive]}
+            >
               <Ionicons
-                name={isCollapsed ? 'chevron-forward' : 'chevron-down'}
-                size={14}
-                color={theme.colors.textSecondary}
+                name={selectMode ? 'close-outline' : 'checkmark-circle-outline'}
+                size={15}
+                color={selectMode ? theme.colors.accent : theme.colors.textSecondary}
               />
+              <Text style={[styles.archiveBtnText, selectMode && { color: theme.colors.accent }]}>
+                {selectMode ? 'Cancel' : 'Select'}
+              </Text>
             </Pressable>
-          );
-        }}
+            {selectMode && selectedIds.size > 0 && (
+              <Pressable
+                onPress={() => {
+                  const count = selectedIds.size;
+                  const ids = Array.from(selectedIds);
+                  confirmAction(
+                    `Delete ${count} note${count > 1 ? 's' : ''}?`,
+                    'This cannot be undone.',
+                    async () => {
+                      await permanentlyDeleteNotes(ids);
+                      setSelectedIds(new Set());
+                      setSelectMode(false);
+                    },
+                    'Delete'
+                  );
+                }}
+                style={styles.archiveBtn}
+              >
+                <Ionicons name="trash-outline" size={15} color={theme.colors.danger} />
+                <Text style={[styles.archiveBtnText, { color: theme.colors.danger }]}>
+                  Delete ({selectedIds.size})
+                </Text>
+              </Pressable>
+            )}
+            <Pressable
+              onPress={() => {
+                confirmAction(
+                  'Delete all archived notes?',
+                  'This cannot be undone.',
+                  async () => {
+                    await deleteAllArchivedNotes();
+                    setSelectMode(false);
+                    setSelectedIds(new Set());
+                  },
+                  'Delete All'
+                );
+              }}
+              style={styles.archiveBtn}
+            >
+              <Ionicons name="trash-bin-outline" size={15} color={theme.colors.danger} />
+              <Text style={[styles.archiveBtnText, { color: theme.colors.danger }]}>
+                Delete All
+              </Text>
+            </Pressable>
+          </View>
+        </>
+      )}
+
+      {/* Scrollable notes list — only this scrolls */}
+      <FlatList
+        ref={flatListRef}
+        data={feedData}
+        keyExtractor={(item) => item.id}
         renderItem={({ item, index }) => (
           <NoteCard
             note={item}
@@ -309,10 +274,10 @@ export default function HomeScreen() {
         ListEmptyComponent={
           <EmptyState message={isArchive ? "No deleted notes." : "No notes yet. Start typing below!"} />
         }
-        extraData={[selectMode, selectedIds.size, isArchive]}
-        stickySectionHeadersEnabled={false}
+        extraData={[selectMode, selectedIds.size, isArchive, newNoteId]}
         contentContainerStyle={styles.listContent}
         keyboardShouldPersistTaps="handled"
+        style={styles.notesList}
       />
 
       {/* Dark overlay when composer is focused */}
@@ -328,6 +293,7 @@ export default function HomeScreen() {
         <Pressable style={StyleSheet.absoluteFill} onPress={() => Keyboard.dismiss()} />
       </Animated.View>
 
+      {/* Fixed composer at bottom */}
       {!isArchive && <Composer onFocusChange={handleComposerFocusChange} />}
 
       <PriorityPicker
@@ -409,7 +375,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#000',
     zIndex: 2,
   },
+  notesList: {
+    flex: 1,
+  },
   listContent: {
-    paddingBottom: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
   },
 });
