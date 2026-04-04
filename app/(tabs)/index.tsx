@@ -388,8 +388,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: theme.spacing.xl,
-    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: 6,
   },
   backRow: {
     flexDirection: 'row',
@@ -405,9 +405,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: theme.spacing.xl,
-    paddingTop: theme.spacing.md,
-    paddingBottom: theme.spacing.xs,
+    paddingHorizontal: theme.spacing.md,
+    paddingTop: 10,
+    paddingBottom: 4,
   },
   sectionHeader: {
     fontSize: theme.typography.label.fontSize,
@@ -418,9 +418,9 @@ const styles = StyleSheet.create({
   },
   archiveActions: {
     flexDirection: 'row',
-    gap: 10,
-    paddingHorizontal: theme.spacing.xl,
-    paddingBottom: theme.spacing.sm,
+    gap: 8,
+    paddingHorizontal: theme.spacing.md,
+    paddingBottom: 6,
   },
   archiveBtn: {
     flexDirection: 'row',
@@ -451,6 +451,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   listContent: {
-    paddingVertical: theme.spacing.sm,
+    paddingVertical: 4,
   },
 });
