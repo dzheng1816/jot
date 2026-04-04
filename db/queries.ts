@@ -69,7 +69,7 @@ export async function getFeedNotes(
     query += ` AND reminder_at IS NOT NULL`;
   }
 
-  query += ` ORDER BY is_pinned DESC, updated_at DESC`;
+  query += ` ORDER BY is_pinned DESC, updated_at ASC`;
 
   const rows = await db.getAllAsync(query, params);
   const notes = rows.map(rowToNote);

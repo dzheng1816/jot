@@ -12,6 +12,7 @@ interface NoteStore {
   priorityFilter: FilterValue;
   isLoading: boolean;
   settings: AppSettings;
+  newNoteId: string | null;
 
   // Actions
   loadFeed: () => Promise<void>;
@@ -27,6 +28,7 @@ interface NoteStore {
   permanentlyDeleteNotes: (ids: string[]) => Promise<void>;
   deleteAllArchivedNotes: () => Promise<void>;
   deleteAllNotes: () => Promise<void>;
+  clearNewNoteId: () => void;
   searchNotes: (query: string) => Promise<Note[]>;
   loadSettings: () => Promise<void>;
   setResurfacing: (enabled: boolean) => Promise<void>;
@@ -39,6 +41,7 @@ export const useNoteStore = create<NoteStore>((set, get) => ({
   priorityFilter: 'all',
   isLoading: false,
   settings: { resurfacing_enabled: true },
+  newNoteId: null,
 
   loadFeed: async () => {
     const filter = get().priorityFilter;
@@ -68,7 +71,12 @@ export const useNoteStore = create<NoteStore>((set, get) => ({
 
   createNote: async (body = '') => {
     const note = await queries.createNote(body);
+    set({ newNoteId: note.id });
     return note;
+  },
+
+  clearNewNoteId: () => {
+    set({ newNoteId: null });
   },
 
   updateBody: async (id, body) => {

@@ -25,33 +25,58 @@ interface Props {
   isSelected?: boolean;
   onToggleSelect?: (noteId: string) => void;
   selectMode?: boolean;
+  isNew?: boolean;
 }
 
-export function NoteCard({ note, index = 0, onOpenPriority, onOpenReminder, isArchived, isSelected, onToggleSelect, selectMode }: Props) {
+export function NoteCard({ note, index = 0, onOpenPriority, onOpenReminder, isArchived, isSelected, onToggleSelect, selectMode, isNew }: Props) {
   const swipeableRef = useRef<Swipeable>(null);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(12)).current;
+  const fadeAnim = useRef(new Animated.Value(isNew ? 0 : 0)).current;
+  const slideAnim = useRef(new Animated.Value(isNew ? 60 : 12)).current;
+  const scaleAnim = useRef(new Animated.Value(isNew ? 0.85 : 1)).current;
   const deleteNote = useNoteStore((s) => s.deleteNote);
   const togglePin = useNoteStore((s) => s.togglePin);
   const restoreNote = useNoteStore((s) => s.restoreNote);
   const permanentlyDeleteNote = useNoteStore((s) => s.permanentlyDeleteNote);
 
   useEffect(() => {
-    const delay = Math.min(index * 50, 300);
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 300,
-        delay,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 300,
-        delay,
-        useNativeDriver: true,
-      }),
-    ]).start();
+    if (isNew) {
+      // iMessage-style bubble pop-up
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.spring(slideAnim, {
+          toValue: 0,
+          tension: 80,
+          friction: 9,
+          useNativeDriver: true,
+        }),
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          tension: 80,
+          friction: 7,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      const delay = Math.min(index * 50, 300);
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 300,
+          delay,
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 300,
+          delay,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
   }, []);
 
   const handlePress = () => {
@@ -103,7 +128,7 @@ export function NoteCard({ note, index = 0, onOpenPriority, onOpenReminder, isAr
     <Animated.View
       style={{
         opacity: fadeAnim,
-        transform: [{ translateY: slideAnim }],
+        transform: [{ translateY: slideAnim }, { scale: scaleAnim }],
       }}
     >
       <Swipeable

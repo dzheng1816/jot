@@ -197,123 +197,128 @@ export default function NoteDetailScreen() {
           </Pressable>
         </View>
 
-        {/* Editor */}
+        {/* Editor card — matches Composer style on home */}
         <ScrollView
           style={styles.editorScroll}
           keyboardDismissMode="interactive"
+          contentContainerStyle={styles.editorScrollContent}
         >
-          <TextInput
-            ref={editorRef}
-            style={styles.editor}
-            value={body}
-            onChangeText={handleChangeText}
-            multiline
-            autoFocus={false}
-            textAlignVertical="top"
-            placeholder="Start typing..."
-            placeholderTextColor={theme.colors.textSecondary}
-            selection={shouldAutoFocus && body ? { start: body.length, end: body.length } : undefined}
-          />
-        </ScrollView>
-
-        {/* Action pills */}
-        <View style={styles.actionsContainer}>
-          <View style={styles.pills}>
-            <Pressable
-              onPress={handleTogglePin}
-              style={[
-                styles.pill,
-                note.is_pinned
-                  ? { backgroundColor: theme.colors.accentLight }
-                  : { backgroundColor: theme.colors.background },
-              ]}
-            >
-              <Ionicons
-                name="pin"
-                size={14}
-                color={
-                  note.is_pinned
-                    ? theme.colors.accent
-                    : theme.colors.textSecondary
-                }
+          <View style={styles.card}>
+            <View style={styles.editorFill}>
+              <TextInput
+                ref={editorRef}
+                style={styles.editor}
+                value={body}
+                onChangeText={handleChangeText}
+                multiline
+                autoFocus={false}
+                textAlignVertical="top"
+                placeholder="Start typing..."
+                placeholderTextColor={theme.colors.textSecondary}
+                selection={shouldAutoFocus && body ? { start: body.length, end: body.length } : undefined}
               />
-              <Text
-                style={[
-                  styles.pillText,
-                  {
-                    color: note.is_pinned
-                      ? theme.colors.accent
-                      : theme.colors.textSecondary,
-                  },
-                ]}
-              >
-                {note.is_pinned ? 'Pinned' : 'Pin'}
-              </Text>
-            </Pressable>
+            </View>
 
-            <Pressable
-              onPress={() => priorityRef.current?.expand()}
-              style={[
-                styles.pill,
-                { backgroundColor: theme.colors.background },
-              ]}
-            >
-              <View
-                style={[
-                  styles.pillDot,
-                  { backgroundColor: pColor || theme.colors.border },
-                ]}
-              />
-              <Text
-                style={[
-                  styles.pillText,
-                  { color: theme.colors.textSecondary },
-                ]}
-              >
-                {note.priority === 'none'
-                  ? 'Priority'
-                  : note.priority.charAt(0).toUpperCase() +
-                    note.priority.slice(1)}
-              </Text>
-            </Pressable>
+            {/* Action pills pinned to bottom of card */}
+            <View style={styles.actionsRow}>
+              <View style={styles.pills}>
+                <Pressable
+                  onPress={handleTogglePin}
+                  style={[
+                    styles.pill,
+                    note.is_pinned
+                      ? { backgroundColor: theme.colors.accentLight }
+                      : { backgroundColor: theme.colors.background },
+                  ]}
+                >
+                  <Ionicons
+                    name="pin"
+                    size={14}
+                    color={
+                      note.is_pinned
+                        ? theme.colors.accent
+                        : theme.colors.textSecondary
+                    }
+                  />
+                  <Text
+                    style={[
+                      styles.pillText,
+                      {
+                        color: note.is_pinned
+                          ? theme.colors.accent
+                          : theme.colors.textSecondary,
+                      },
+                    ]}
+                  >
+                    {note.is_pinned ? 'Pinned' : 'Pin'}
+                  </Text>
+                </Pressable>
 
-            <Pressable
-              onPress={() => reminderRef.current?.expand()}
-              style={[
-                styles.pill,
-                { backgroundColor: theme.colors.background },
-              ]}
-            >
-              <Ionicons
-                name="alarm-outline"
-                size={14}
-                color={
-                  note.reminder_at
-                    ? theme.colors.accent
-                    : theme.colors.textSecondary
-                }
-              />
-              <Text
-                style={[
-                  styles.pillText,
-                  {
-                    color: note.reminder_at
-                      ? theme.colors.accent
-                      : theme.colors.textSecondary,
-                  },
-                ]}
-              >
-                {note.reminder_at
-                  ? formatReminderTime(note.reminder_at)
-                  : 'Remind'}
-              </Text>
-            </Pressable>
+                <Pressable
+                  onPress={() => priorityRef.current?.expand()}
+                  style={[
+                    styles.pill,
+                    { backgroundColor: theme.colors.background },
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.pillDot,
+                      { backgroundColor: pColor || theme.colors.border },
+                    ]}
+                  />
+                  <Text
+                    style={[
+                      styles.pillText,
+                      { color: theme.colors.textSecondary },
+                    ]}
+                  >
+                    {note.priority === 'none'
+                      ? 'Priority'
+                      : note.priority.charAt(0).toUpperCase() +
+                        note.priority.slice(1)}
+                  </Text>
+                </Pressable>
+
+                <Pressable
+                  onPress={() => reminderRef.current?.expand()}
+                  style={[
+                    styles.pill,
+                    { backgroundColor: theme.colors.background },
+                  ]}
+                >
+                  <Ionicons
+                    name="alarm-outline"
+                    size={14}
+                    color={
+                      note.reminder_at
+                        ? theme.colors.accent
+                        : theme.colors.textSecondary
+                    }
+                  />
+                  <Text
+                    style={[
+                      styles.pillText,
+                      {
+                        color: note.reminder_at
+                          ? theme.colors.accent
+                          : theme.colors.textSecondary,
+                      },
+                    ]}
+                  >
+                    {note.reminder_at
+                      ? formatReminderTime(note.reminder_at)
+                      : 'Remind'}
+                  </Text>
+                </Pressable>
+              </View>
+
+              <Pressable onPress={handleDelete} hitSlop={8}>
+                <Ionicons name="trash-outline" size={18} color={theme.colors.danger} />
+              </Pressable>
+            </View>
           </View>
-
-          <Pressable onPress={handleDelete}>
-            <Text style={styles.deleteText}>Delete</Text>
-          </Pressable>
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
 
       <PriorityPicker
@@ -364,28 +369,50 @@ const styles = StyleSheet.create({
   },
   editorScroll: {
     flex: 1,
-    paddingHorizontal: theme.spacing.xl,
+  },
+  editorScrollContent: {
+    flexGrow: 1,
+    padding: theme.spacing.md,
+    paddingBottom: 100,
+  },
+  card: {
+    backgroundColor: theme.colors.card,
+    borderRadius: theme.radius.composer,
+    padding: theme.spacing.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+    flexDirection: 'column',
+    minHeight: '100%',
+  } as any,
+  editorFill: {
+    flex: 1,
   },
   editor: {
     fontSize: theme.typography.body.fontSize,
     color: theme.colors.textPrimary,
     lineHeight: 24,
-    paddingTop: theme.spacing.md,
-    minHeight: 200,
+    flex: 1,
     outlineStyle: 'none',
     borderWidth: 0,
+    padding: 0,
   } as any,
-  actionsContainer: {
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
+  actionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: theme.spacing.sm,
+    paddingTop: theme.spacing.sm,
     borderTopWidth: 1,
     borderTopColor: theme.colors.border,
-    backgroundColor: theme.colors.card,
   },
   pills: {
     flexDirection: 'row',
     gap: 8,
     flexWrap: 'wrap',
+    flex: 1,
   },
   pill: {
     flexDirection: 'row',
@@ -403,12 +430,5 @@ const styles = StyleSheet.create({
   pillText: {
     fontSize: 13,
     fontWeight: '500',
-  },
-  deleteText: {
-    color: theme.colors.danger,
-    fontSize: 14,
-    fontWeight: '500',
-    textAlign: 'center',
-    paddingVertical: 12,
   },
 });

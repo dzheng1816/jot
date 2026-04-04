@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet, Keyboard } from 'react-native';
+import { View, Text, TextInput, Pressable, StyleSheet, Keyboard, Animated } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { theme, priorityColor } from '../constants/theme';
@@ -10,16 +10,44 @@ import { ReminderPicker, ReminderPickerHandle } from './ReminderPicker';
 import { scheduleReminderNotification } from '../utils/notifications';
 import { processAutoList } from '../utils/autoList';
 
-export function Composer() {
+interface ComposerProps {
+  onFocusChange?: (focused: boolean) => void;
+}
+
+export function Composer({ onFocusChange }: ComposerProps) {
   // All draft state — nothing touches the DB until "Jot" is tapped
   const [text, setText] = useState('');
   const [priority, setPriority] = useState<Priority>('none');
   const [isPinned, setIsPinned] = useState(false);
   const [reminderAt, setReminderAt] = useState<string | null>(null);
+  const [isFocused, setIsFocused] = useState(false);
+  const elevationAnim = useRef(new Animated.Value(0)).current;
 
   const inputRef = useRef<TextInput>(null);
   const priorityRef = useRef<PriorityPickerHandle>(null);
   const reminderRef = useRef<ReminderPickerHandle>(null);
+
+  const handleFocus = useCallback(() => {
+    setIsFocused(true);
+    onFocusChange?.(true);
+    Animated.spring(elevationAnim, {
+      toValue: 1,
+      useNativeDriver: false,
+      tension: 50,
+      friction: 8,
+    }).start();
+  }, [onFocusChange, elevationAnim]);
+
+  const handleBlur = useCallback(() => {
+    setIsFocused(false);
+    onFocusChange?.(false);
+    Animated.spring(elevationAnim, {
+      toValue: 0,
+      useNativeDriver: false,
+      tension: 50,
+      friction: 8,
+    }).start();
+  }, [onFocusChange, elevationAnim]);
 
   const { createNote, updateBody, togglePin, updatePriority, updateReminder, loadFeed } =
     useNoteStore();
@@ -106,9 +134,30 @@ export function Composer() {
   const pColor = priorityColor(priority);
   const showJotButton = text.length > 0;
 
+  const animatedCardStyle = {
+    shadowOpacity: elevationAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0.05, 0.18],
+    }),
+    shadowRadius: elevationAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: [4, 16],
+    }),
+    transform: [{
+      scale: elevationAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: [1, 1.015],
+      }),
+    }],
+    elevation: elevationAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: [2, 12],
+    }),
+  };
+
   return (
     <>
-      <View style={styles.card}>
+      <Animated.View style={[styles.card, animatedCardStyle, isFocused && styles.cardFocused]}>
         <TextInput
           ref={inputRef}
           style={styles.input}
@@ -116,6 +165,8 @@ export function Composer() {
           placeholderTextColor={theme.colors.textSecondary}
           value={text}
           onChangeText={handleChangeText}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
           multiline
           textAlignVertical="top"
         />
@@ -151,7 +202,7 @@ export function Composer() {
             </Pressable>
           )}
         </View>
-      </View>
+      </Animated.View>
 
       <PriorityPicker
         ref={priorityRef}
@@ -174,19 +225,26 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.card,
     marginHorizontal: theme.spacing.md,
     marginTop: theme.spacing.sm,
+    marginBottom: theme.spacing.sm,
     borderRadius: theme.radius.composer,
     padding: theme.spacing.md,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
+    zIndex: 10,
+    position: 'relative',
+  },
+  cardFocused: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -8 },
   },
   input: {
     fontSize: theme.typography.body.fontSize,
     color: theme.colors.textPrimary,
-    minHeight: 160,
-    maxHeight: 280,
+    minHeight: 80,
+    maxHeight: 200,
     textAlignVertical: 'top',
     outlineStyle: 'none',
     borderWidth: 0,

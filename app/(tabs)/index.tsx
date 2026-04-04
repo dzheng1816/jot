@@ -1,5 +1,5 @@
 import React, { useEffect, useCallback, useRef, useState } from 'react';
-import { View, Text, SectionList, StyleSheet, Pressable, Keyboard } from 'react-native';
+import { View, Text, SectionList, StyleSheet, Pressable, Keyboard, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, router } from 'expo-router';
@@ -32,9 +32,23 @@ export default function HomeScreen() {
   const updateReminder = useNoteStore((s) => s.updateReminder);
   const permanentlyDeleteNotes = useNoteStore((s) => s.permanentlyDeleteNotes);
   const deleteAllArchivedNotes = useNoteStore((s) => s.deleteAllArchivedNotes);
+  const newNoteId = useNoteStore((s) => s.newNoteId);
+  const clearNewNoteId = useNoteStore((s) => s.clearNewNoteId);
   const isArchive = priorityFilter === 'archive';
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [composerFocused, setComposerFocused] = useState(false);
+  const overlayAnim = useRef(new Animated.Value(0)).current;
+  const sectionListRef = useRef<SectionList>(null);
+
+  const handleComposerFocusChange = useCallback((focused: boolean) => {
+    setComposerFocused(focused);
+    Animated.timing(overlayAnim, {
+      toValue: focused ? 1 : 0,
+      duration: 250,
+      useNativeDriver: true,
+    }).start();
+  }, [overlayAnim]);
 
   const handleToggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -61,6 +75,26 @@ export default function HomeScreen() {
       setSelectedIds(new Set());
     }
   }, [isArchive]);
+
+  // Scroll to bottom when a new note is created, then clear the flag
+  useEffect(() => {
+    if (newNoteId && sections.length > 0) {
+      const lastSection = sections[sections.length - 1];
+      if (lastSection && lastSection.data.length > 0) {
+        setTimeout(() => {
+          try {
+            sectionListRef.current?.scrollToLocation({
+              sectionIndex: sections.length - 1,
+              itemIndex: lastSection.data.length - 1,
+              animated: true,
+            });
+          } catch {}
+        }, 100);
+      }
+      // Clear after animation completes
+      setTimeout(() => clearNewNoteId(), 600);
+    }
+  }, [newNoteId, recentNotes.length, pinnedNotes.length]);
 
   useFocusEffect(
     useCallback(() => {
@@ -153,11 +187,11 @@ export default function HomeScreen() {
       </View>
 
       <SectionList
+        ref={sectionListRef}
         sections={sections}
         keyExtractor={(item) => item.id}
         ListHeaderComponent={
           <>
-            {!isArchive && <Composer />}
             <PriorityFilter />
             {isArchive && archivedNotes.length > 0 && (
               <>
@@ -269,16 +303,32 @@ export default function HomeScreen() {
             selectMode={isArchive && selectMode}
             isSelected={selectedIds.has(item.id)}
             onToggleSelect={handleToggleSelect}
+            isNew={item.id === newNoteId}
           />
         )}
         ListEmptyComponent={
-          <EmptyState message={isArchive ? "No deleted notes." : "No notes yet. Start typing above!"} />
+          <EmptyState message={isArchive ? "No deleted notes." : "No notes yet. Start typing below!"} />
         }
         extraData={[selectMode, selectedIds.size, isArchive]}
         stickySectionHeadersEnabled={false}
         contentContainerStyle={styles.listContent}
         keyboardShouldPersistTaps="handled"
       />
+
+      {/* Dark overlay when composer is focused */}
+      <Animated.View
+        style={[
+          styles.overlay,
+          {
+            opacity: overlayAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 0.4] }),
+            pointerEvents: composerFocused ? 'auto' : 'none',
+          },
+        ]}
+      >
+        <Pressable style={StyleSheet.absoluteFill} onPress={() => Keyboard.dismiss()} />
+      </Animated.View>
+
+      {!isArchive && <Composer onFocusChange={handleComposerFocusChange} />}
 
       <PriorityPicker
         ref={priorityPickerRef}
@@ -354,7 +404,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: theme.colors.textSecondary,
   },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#000',
+    zIndex: 2,
+  },
   listContent: {
-    paddingBottom: 100,
+    paddingBottom: theme.spacing.md,
   },
 });
